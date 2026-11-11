@@ -304,6 +304,7 @@ form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=
 #lock .pad button{width:76px;height:76px;border-radius:50%;border:1px solid var(--bd);background:var(--surface);color:var(--tx);font:600 26px/1 var(--f-num)}
 #lock .pad button:active{background:var(--accbg)}#lock .pad button:disabled{opacity:.4}
 #lock .lk-f{background:none;border:0;color:var(--mut);font-size:13.5px;padding:8px;margin-top:6px}
+.nfb{background:var(--accbg)!important;color:var(--acc)!important;font-weight:700}
 .eyeb{border:1px solid var(--bd);background:var(--surface);color:var(--tx);width:38px;height:38px;border-radius:99px;display:grid;place-items:center;flex:none}
 .eyeb.on{background:var(--accbg);color:var(--acc)}.eye-m{margin-left:auto}.eye-d{display:none}
 @media (min-width:900px){.eye-m{display:none}.eye-d{display:grid}}
@@ -604,11 +605,33 @@ async function saveFile(name,text){
 let pend={foto:null,loc:null,busy:false},AS=null;
 (async()=>{try{AS=window.claude&&window.claude.use?await window.claude.use('assets'):null}catch(e){AS=null}})();
 const anxTag=t=>(t&&t.foto?'<i class="tag">foto</i>':'')+(t&&(t.loc||t.local)?'<i class="tag">local</i>':'');
+let SAMP=null;
+(async()=>{try{const s=window.claude&&window.claude.use?await window.claude.use('sample'):null;if(s){const l=s.limits?await s.limits():null;if(l&&l.images)SAMP=s}}catch(e){SAMP=null}
+  if(SAMP&&modal&&(modal.type==='addTx'||modal.type==='editTx'))paintAnx()})();
+async function nfRead(f){
+  pend.busy=true;toast('Lendo a nota…');
+  try{
+    let b;try{b=await shrink(f,1600,.8)}catch(x){b=f}
+    if(AS&&!pend.foto){try{const r=await AS.upload(b);pend.foto=r.id}catch(x){}}
+    const prompt=`Leia esta nota fiscal ou cupom de compra brasileiro. Responda somente com um JSON: {"estabelecimento":"nome curto da loja","total":valor total pago como número com ponto decimal,"data":"AAAA-MM-DD" ou null,"categoria":uma destas [${CD.join(', ')}] ou null,"resumo":"até 6 palavras sobre o que foi comprado"}. Use o total pago, não subtotais. Se a imagem não for uma nota ou cupom, responda {"erro":true}.`;
+    const r=SAMP.json?await SAMP.json(prompt,{images:[b],modelTier:'quick'}):JSON.parse(((await SAMP(prompt,{images:[b]})).text.match(/\{[\s\S]*\}/)||['{}'])[0]);
+    const fm=document.querySelector('.modal form');
+    if(!r||r.erro||!(+r.total>0)||!fm){toast('Não consegui ler essa nota. Tente de novo com mais luz.')}
+    else{
+      const set=(n,v)=>{const e=fm.elements[n];if(e&&v)e.value=v};
+      set('valor',(+r.total).toFixed(2).replace('.',','));
+      if(r.estabelecimento)set('nome',String(r.estabelecimento).trim().slice(0,60));
+      if(/^\d{4}-\d{2}-\d{2}$/.test(r.data||'')&&r.data<=todayStr)set('data',r.data);
+      if(r.categoria&&CD.includes(r.categoria))set('cat',r.categoria);
+      toast('Nota lida'+(r.resumo?' ('+String(r.resumo).slice(0,40)+')':'')+'. Confira e salve.')}
+  }catch(x){toast(x&&x.code==='rate_limited'?'Muitas leituras seguidas. Aguarde um pouco.':x&&x.code==='not_granted'?'Leitura de nota não autorizada.':'Não consegui ler essa nota.')}
+  pend.busy=false;paintAnx()}
 function anxHtml(){
   const f=pend.foto,l=pend.loc;
   const foto=f?`<div class="anxph"><a href="/_blob/${esc(f)}" target="_blank" rel="noopener"><img src="/_blob/${esc(f)}" alt="Foto anexada"></a><button type="button" class="icon danger" data-a="rmFoto" aria-label="Remover foto">${ic('x',16)}</button></div>`:(AS?`<label class="btnl">${ic('cam',16)} Anexar foto<input type="file" accept="image/*" id="fotoin" hidden></label>`:'');
   const loc=l?`<a class="tag" target="_blank" rel="noopener" href="https://maps.apple.com/?ll=${l.lat},${l.lon}&q=Compra">${ic('pin',12)} ver no mapa</a><button type="button" class="icon danger" style="width:28px;height:28px" data-a="rmLoc" aria-label="Remover localização">${ic('x',14)}</button>`:`<button type="button" class="sec mini" data-a="getLoc">${ic('pin',14)} Marcar onde estou</button>`;
-  return `<div class="anxrow">${foto}${loc}</div>`;
+  const nf=SAMP?`<label class="btnl nfb">${ic('cam',16)} Ler nota fiscal<input type="file" accept="image/*" capture="environment" id="nfin" hidden></label>`:'';
+  return `<div class="anxrow">${nf}${foto}${loc}</div>`;
 }
 function paintAnx(){const a=$('#anx');if(a)a.innerHTML=anxHtml()}
 function shrink(file,max=1280,q=.72){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error('x')),'image/jpeg',q)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('x'))};im.src=u})}
@@ -1387,6 +1410,7 @@ document.addEventListener('change',e=>{
     if(k==='USD'){if(v>0){S.cot.usd=v;S.cot.usdData=todayStr}else{S.cot.usd=0;S.cot.usdData=null}}
     else{if(v>0)S.cot.t[k]={v,d:todayStr};else delete S.cot.t[k]}
     commit();toast('Cotação atualizada.');return}
+  if(el.id==='nfin'){const f=el.files&&el.files[0];if(f&&SAMP)nfRead(f);el.value='';return}
   if(el.id==='fotoin'){const f=el.files&&el.files[0];if(!f||!AS)return;pend.busy=true;toast('Enviando foto…');
     (async()=>{try{let b;try{b=await shrink(f)}catch(x){b=f}const r=await AS.upload(b);pend.foto=r.id;toast('Foto anexada.')}catch(x){toast('Não consegui enviar a foto.')}pend.busy=false;paintAnx()})();return}
   if(el.id==='sini'){const v=parseValor(el.value);S.saldoIni=isFinite(v)?v:0;commit();return}
