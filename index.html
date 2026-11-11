@@ -1200,8 +1200,8 @@ function renderModal(){
   if(modal.type==='transf'){
     return bg('Transferir entre contas',`<form class="f" data-f="saveTransf">
       <input class="big full" name="valor" inputmode="decimal" required placeholder="R$ 0,00" aria-label="Valor" data-focus autocomplete="off">
-      <label>De<select name="de">${epOpts('i:'+((S.inv.find(i=>i.tipo==='res')||{}).id||''))}</select></label>
-      <label>Para<select name="para">${epOpts('p')}</select></label>
+      <label class="full">De<select name="de">${epOpts('i:'+((S.inv.find(i=>i.tipo==='res')||{}).id||''))}</select></label>
+      <label class="full">Para<select name="para">${epOpts('p')}</select></label>
       <label>Data<input name="data" type="date" required value="${todayStr}"></label>
       <label>Observação (opcional)<input name="nota" placeholder="cobrir especial" autocomplete="off"></label>
       <p class="hint full" style="margin:0">“Conta corrente (principal)” é a sua conta do dia a dia, sem saldo controlado aqui. Cadastre outras contas em “+ Conta”.</p>
