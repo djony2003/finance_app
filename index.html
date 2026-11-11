@@ -428,7 +428,9 @@ function extratoItems(m){
   d.tx.forEach(t=>out.push({k:'tx',id:t.id,dia:+t.data.slice(8),nome:t.nome,valor:t.valor,tipo:t.tipo,cat:t.cat,tags:t.tags||[],quem:t.quem||'Casa',src:(t.tipo==='entrada'?'Entrada':'Gasto')+' · dia '+t.data.slice(8)}));
   return out.sort((a,b)=>b.dia-a.dia||a.nome.localeCompare(b.nome));
 }
-function exFilter(it){const q=ef.q.trim().toLowerCase();return it.filter(x=>(ef.tipo==='todos'||x.tipo===ef.tipo)&&(!ef.cat||x.cat===ef.cat)&&(!ef.tag||x.tags.includes(ef.tag))&&(!ef.quem||x.quem===ef.quem)&&(!q||(x.nome+' '+x.cat+' '+x.tags.join(' ')).toLowerCase().includes(q)))}
+function exFilter(it){const q=ef.q.trim().toLowerCase(),qn=q.replace(/r\$|\s/g,''),num=/^[\d.,]+$/.test(qn)?qn:'';
+  const vm=x=>{const v=Math.abs(x.valor||0),f=v.toFixed(2);return f.replace('.',',').includes(num.replace(/\./g,'').replace(/,$/,''))||f.includes(num.replace(/,/g,'.'))||v.toLocaleString('pt-BR',{minimumFractionDigits:2}).includes(num)};
+  return it.filter(x=>(ef.tipo==='todos'||x.tipo===ef.tipo)&&(!ef.cat||x.cat===ef.cat)&&(!ef.tag||x.tags.includes(ef.tag))&&(!ef.quem||x.quem===ef.quem)&&(!q||(x.nome+' '+x.cat+' '+x.tags.join(' ')).toLowerCase().includes(q)||(num&&vm(x))))}
 function exBody(){
   const L=exFilter(extratoItems(view));
   const sd=L.filter(x=>x.tipo==='despesa').reduce((s,x)=>s+x.valor,0),se=L.filter(x=>x.tipo==='entrada').reduce((s,x)=>s+x.valor,0);
@@ -442,7 +444,7 @@ function vExtrato(){
   const sel=(k,label,arr)=>`<label>${label}<select data-ef="${k}"><option value="">Todas</option>${arr.map(c=>`<option${ef[k]===c?' selected':''}>${esc(c)}</option>`).join('')}</select></label>`;
   return pageHead('Extrato e filtros',`Tudo de ${esc(mname(view))}: despesas fixas, cartão e lançamentos`)+
   `<div class="card"><div class="chips" style="margin-bottom:12px">${[['todos','Tudo'],['despesa','Despesas'],['entrada','Entradas']].map(([v,l])=>`<button class="chip ${ef.tipo===v?'on':''}" data-a="eftipo" data-v="${v}">${l}</button>`).join('')}</div>
-  <div class="capgrid">${sel('cat','Categoria',cats)}${sel('tag','Tag',tags)}${sel('quem','Quem',qs)}<label>Buscar<input id="exq" value="${esc(ef.q)}" placeholder="descrição, categoria, tag" autocomplete="off"></label></div>
+  <div class="capgrid">${sel('cat','Categoria',cats)}${sel('tag','Tag',tags)}${sel('quem','Quem',qs)}<label>Buscar<input id="exq" value="${esc(ef.q)}" placeholder="descrição, valor, categoria, tag" autocomplete="off"></label></div>
   <div class="btns" style="margin-top:12px"><button class="sec mini" data-a="efclear">Limpar filtros</button><button class="sec mini" data-a="tab" data-t="cats">Categorias e tags</button></div>
   <p class="hint">Orçamentos fixos não entram aqui: o gasto real aparece nos lançamentos.</p></div><div id="exbody">${exBody()}</div>`;
 }
