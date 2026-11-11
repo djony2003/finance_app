@@ -298,6 +298,9 @@ form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=
 .usdchip:hover{border-color:var(--acc)}
 .usdchip small{font-size:11px;color:var(--mut);font-weight:600}
 .chip .icon{display:inline-grid}
+.modalbg{inset:auto;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100dvh);overscroll-behavior:contain}
+.modal{max-height:92%;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+body:has(.modalbg){overflow:hidden}
 </style>
 <div id="root"></div>
 <script id="state" type="application/json">{"rec":[],"tx":[],"pagos":{},"limite":0,"vals":{},"caps":{},"parc":[],"metas":[],"next":1,"v":0,"inv":[],"cot":{"usd":0,"usdData":null,"t":{}},"cats":{"d":[],"e":[]}}</script>
@@ -1180,6 +1183,8 @@ document.addEventListener('submit',e=>{
   if(dl&&tab==='mais')render();
 })();
 
+(function(){const vv=window.visualViewport;if(!vv)return;const f=()=>{const r=document.documentElement.style;r.setProperty('--vvh',vv.height+'px');r.setProperty('--vvt',vv.offsetTop+'px')};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()})();
+document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.closest&&t.closest('.modal')&&/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))setTimeout(()=>{try{t.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){}},320)});
 render();
 setTimeout(()=>refreshQuotes(false),400);
 })();
