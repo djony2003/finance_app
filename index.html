@@ -90,7 +90,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main{flex:1;min-width:0;padding-block:14px 150px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}.top .brand{flex:1 1 auto}
 .logo{width:34px;height:34px;border-radius:11px;background:var(--hero);color:var(--hero-tx);display:grid;place-items:center;flex:none;font:700 15px var(--f-num)}
 .brand h1{font:700 17px/1.1 var(--f-num);margin:0;letter-spacing:-.01em}
 .status{font-size:11.5px;color:var(--mut);min-height:14px}
@@ -293,6 +293,9 @@ form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=
 .sumbox{background:var(--surface2);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13.5px;color:var(--mut)}
 .sumbox b{color:var(--tx)}
 .mic.on{background:var(--neg);color:var(--bg);border-color:var(--neg)}
+.eyeb{border:1px solid var(--bd);background:var(--surface);color:var(--tx);width:38px;height:38px;border-radius:99px;display:grid;place-items:center;flex:none}
+.eyeb.on{background:var(--accbg);color:var(--acc)}.eye-m{margin-left:auto}.eye-d{display:none}
+@media (min-width:900px){.eye-m{display:none}.eye-d{display:grid}}
 .top .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .usdchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd);background:var(--surface);border-radius:99px;padding:7px 12px;font-size:12.5px;font-weight:600;color:var(--tx)}
 .usdchip:hover{border-color:var(--acc)}
@@ -342,7 +345,9 @@ refreshCats();
 const PESSOAS=['Casa','Djony','Mariene'];
 const PAL=['#3b5bdb','#df7414','#12a383','#9b51e0','#e0457b','#6a9e1f','#1c9fc4','#c99a10','#7b8499','#d23c1f'];
 const pad=n=>String(n).padStart(2,'0');
-const brl=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+let HIDE=false;try{HIDE=localStorage.getItem('cf_hide')==='1'}catch(e){}
+const MASK='••••';
+const brl=v=>HIDE?'R$ '+MASK:(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const today=new Date();
 const curM=today.getFullYear()+'-'+pad(today.getMonth()+1);
@@ -364,6 +369,8 @@ const catColor=(c,tipo)=>{if(tipo==='entrada')return 'var(--pos)';const i=CD.ind
 const av=(c,tipo)=>`<span class="av" style="--c:${catColor(c,tipo)}">${esc((c||'?').charAt(0))}</span>`;
 
 const IC={
+  eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 5.1A10.5 10.5 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
   list:'<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/>',
   repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
@@ -497,9 +504,9 @@ function alertas(d,items){
 
 /* ---------- investimentos ---------- */
 const INVT={rf:['Renda fixa','#12a383'],rv:['Renda variável','#9b51e0'],acao:['Ações e FIIs','#3b5bdb'],res:['Reserva em conta','#1c9fc4'],usd:['Conta em dólar','#c99a10']};
-const usdF=v=>'US$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const usdF=v=>HIDE?'US$ '+MASK:'US$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const qtdF=v=>(v||0).toLocaleString('pt-BR',{maximumFractionDigits:8});
-const brlN=v=>(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
+const brlN=v=>HIDE?'R$ '+MASK:(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
 const pctF=v=>(v>0?'+':'')+(v*100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const sgn=v=>(v>0.004?'+ ':v<-0.004?'− ':'')+brl(Math.abs(v));
 const dmy=s=>s?s.slice(8,10)+'/'+s.slice(5,7):'';
@@ -596,7 +603,8 @@ function paintAnx(){const a=$('#anx');if(a)a.innerHTML=anxHtml()}
 function shrink(file,max=1280,q=.72){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>b?res(b):rej(new Error('x')),'image/jpeg',q)};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('x'))};im.src=u})}
 
 /* ---------- relatório do mês ---------- */
-function relBody(){
+function relBody(){const _h=HIDE;HIDE=false;try{return relBody0()}finally{HIDE=_h}}
+function relBody0(){
   const d=monthData(view),items=orcItems(d);
   const st=(ok,a,b)=>`<span class="pill ${ok?'ok':'pend'}">${ok?a:b}</span>`;
   const tbl=(head,rows,empty)=>rows?`<div class="tbl"><table class="rt"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty">${empty}</div>`;
@@ -627,7 +635,8 @@ function relBody(){
 function vRel(){
   return pageHead('Relatório','Resumo do mês com gráficos, valores, parcelamentos e aplicações.',dl?`<button class="pri" data-a="exportRel">${ic('dl',17)} Baixar relatório</button>`:'')+relBody();
 }
-function docRel(){
+function docRel(){const _h=HIDE;HIDE=false;try{return docRel0()}finally{HIDE=_h}}
+function docRel0(){
   const th=(S.tema==='light'||S.tema==='dark')?` data-theme="${S.tema}"`:'';
   return `<!doctype html><html lang="pt-BR"${th}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relatório ${esc(mlabel(view))}</title><style>${$('#app-style').textContent}</style></head><body><div class="main"><div class="wrap">${relBody()}</div></div></body></html>`;
 }
@@ -655,7 +664,7 @@ function previsao(n){
     out.push({m,ent:d.entPrev,fix:d.fixPrev,card:d.cartPrev,meta:d.metaPrev,vr:d.vr+ex,saidas,saldo,acc})}
   return out;
 }
-const kfmt=v=>Math.abs(v)>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil':String(Math.round(v));
+const kfmt=v=>HIDE?MASK:Math.abs(v)>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil':String(Math.round(v));
 function saldoIniCard(){const f=allMonths()[0]||curM;return `<div class="card"><h3>Saldo inicial</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Em ${esc(mname(f))} (R$)<input id="sini" inputmode="decimal" placeholder="0,00" value="${S.saldoIni?String(S.saldoIni).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">Quanto você tinha disponível no começo de ${esc(mlabel(f))}. A sobra de cada mês passa para o seguinte, descontando o que você destinar a metas ou aplicações ao fechar o mês.</span></div></div>`}
 function vPrev(){
   const L=previsao(6),est=varMedio(),neg=L.filter(x=>x.acc<0);
@@ -1099,10 +1108,10 @@ function render(){refreshCats();applyTema();
   const body=tab==='inv'?vInv():tab==='lanc'?vLanc():tab==='fixas'?vFixas():tab==='cartao'?vCartao():tab==='metas'?vMetas():tab==='ditar'?vDitar():tab==='previsao'?vPrev():tab==='importar'?vImp():tab==='fechamento'?vFech():tab==='relatorio'?vRel():tab==='extrato'?vExtrato():tab==='cats'?vCats():tab==='mais'?vMais():vResumo();
   const navOn=t=>tab===t||(t==='mais'&&(tab==='ditar'||tab==='metas'||tab==='extrato'||tab==='cats'||tab==='relatorio'||tab==='previsao'||tab==='importar'||tab==='fechamento'));
   const st=($('.status')||{}).textContent||'';
-  const brand=`<div class="brand"><span class="logo">R$</span><div><h1>Controle Financeiro</h1><div class="status">${esc(st)}</div></div></div>`;
+  const brand=`<div class="brand"><span class="logo">R$</span><div><h1>Controle Financeiro</h1><div class="status">${esc(st)}</div></div><button class="eyeb eye-m${HIDE?' on':''}" data-a="eye" aria-label="${HIDE?'Mostrar valores':'Ocultar valores'}" aria-pressed="${HIDE}">${ic(HIDE?'eyeoff':'eye',19)}</button></div>`;
   const side=`<aside class="side">${brand}<button class="pri" data-a="open" data-m="addTx">${ic('plus',18)} Novo lançamento</button>${NAV.slice(0,4).concat([['inv','Investimentos','trend'],['metas','Metas e tetos','target'],['ditar','Ditar ou colar','mic'],['previsao','Previsão','trend'],['fechamento','Fechar o mês','cal'],['importar','Importar extrato','dl'],['relatorio','Relatório do mês','text'],['extrato','Extrato e filtros','list'],['cats','Categorias e tags','plus'],['mais','Exportar e backup','dl']]).map(n=>`<button class="nv ${tab===n[0]?'on':''}" data-a="tab" data-t="${n[0]}">${ic(n[2],19)}${n[1]}</button>`).join('')}</aside>`;
   $('#root').innerHTML=`<div class="app">${side}<main class="main"><div class="wrap">
-    <div class="top">${brand}<div class="right">${usdChip()}<div class="month"><button data-a="prev" aria-label="Mês anterior">${ic('cl',18)}</button><b>${esc(cap(mlabel(view)))}</b><button data-a="next" aria-label="Próximo mês">${ic('cr',18)}</button>${view!==curM?'<button class="today" data-a="hoje">Hoje</button>':''}</div></div></div>
+    <div class="top">${brand}<div class="right"><button class="eyeb eye-d${HIDE?' on':''}" data-a="eye" aria-label="${HIDE?'Mostrar valores':'Ocultar valores'}">${ic(HIDE?'eyeoff':'eye',19)}</button>${usdChip()}<div class="month"><button data-a="prev" aria-label="Mês anterior">${ic('cl',18)}</button><b>${esc(cap(mlabel(view)))}</b><button data-a="next" aria-label="Próximo mês">${ic('cr',18)}</button>${view!==curM?'<button class="today" data-a="hoje">Hoje</button>':''}</div></div></div>
     ${body}</div></main></div>
     <button class="fab" data-a="open" data-m="addTx" aria-label="Novo lançamento">${ic('plus',26)}</button>
     <nav class="bnav">${NAV.map(n=>`<button class="${navOn(n[0])?'on':''}" data-a="tab" data-t="${n[0]}">${ic(n[2],22)}<span>${n[1]}</span></button>`).join('')}</nav>
@@ -1300,6 +1309,7 @@ document.addEventListener('click',e=>{
     case 'eftipo':ef.tipo=el.dataset.v;render();break;
     case 'efclear':ef={tipo:'todos',cat:'',tag:'',quem:'',q:''};render();break;
     case 'tagFilter':ef={tipo:'todos',cat:'',tag:el.dataset.n,quem:'',q:''};tab='extrato';modal=null;persistView();render();window.scrollTo(0,0);break;
+    case 'eye':HIDE=!HIDE;try{localStorage.setItem('cf_hide',HIDE?'1':'0')}catch(e){}render();break;
     case 'qrefresh':refreshQuotes(true);break;
     case 'exportRel':saveFile('relatorio-'+view+'.html',docRel());break;
     case 'impParse':{const t=($('#imptxt')||{}).value||'';impTxt=t;imp=buildImp(parseExtrato(t).slice(0,600));render();if(!imp.length)toast('Não encontrei lançamentos nesse texto.');break}
