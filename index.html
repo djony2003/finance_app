@@ -305,6 +305,7 @@ form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=
 #lock .pad button:active{background:var(--accbg)}#lock .pad button:disabled{opacity:.4}
 #lock .lk-f{background:none;border:0;color:var(--mut);font-size:13.5px;padding:8px;margin-top:6px}
 .nfb{background:var(--accbg)!important;color:var(--acc)!important;font-weight:700}
+.hadj{background:rgba(255,255,255,.14);color:inherit;border:1px solid rgba(255,255,255,.28);border-radius:99px;padding:5px 12px;font-size:12.5px;font-weight:600;margin-top:4px}
 .eyeb{border:1px solid var(--bd);background:var(--surface);color:var(--tx);width:38px;height:38px;border-radius:99px;display:grid;place-items:center;flex:none}
 .eyeb.on{background:var(--accbg);color:var(--acc)}.eye-m{margin-left:auto}.eye-d{display:none}
 @media (min-width:900px){.eye-m{display:none}.eye-d{display:grid}}
@@ -475,7 +476,7 @@ function guardado(g){return g.base+Object.keys(S.pagos).filter(m=>S.pagos[m]&&S.
 function monthData(m){
   const rec=recAtiva(m),tx=S.tx.filter(t=>t.data.startsWith(m)).sort((a,b)=>a.data.localeCompare(b.data));
   const pg=S.pagos[m]||{},parc=parcDoMes(m),metas=metasDoMes(m);
-  let entPrev=0,entReal=0,fixPrev=0,fixReal=0,cartPrev=0,cartReal=0,metaPrev=0,metaReal=0,vr=0;
+  let entPrev=0,entReal=0,fixPrev=0,fixReal=0,cartPrev=0,cartReal=0,metaPrev=0,metaReal=0,vr=0,aj=0;
   const cats={},orcs=[],claimed={},porQuem={};
   const orcCats=new Set(rec.filter(r=>r.orc&&r.tipo==='despesa').map(r=>r.cat));
   const catSpent=c=>tx.filter(t=>t.tipo==='despesa'&&t.cat===c).reduce((s,t)=>s+t.valor,0);
@@ -485,12 +486,13 @@ function monthData(m){
     else{fixPrev+=v;if(done)fixReal+=v;cats[r.cat]=(cats[r.cat]||0)+v}});
   parc.forEach(x=>{cartPrev+=x.valor;if(pg['p'+x.p.id])cartReal+=x.valor;cats[x.p.cat]=(cats[x.p.cat]||0)+x.valor;const q=x.p.quem||'Casa';porQuem[q]=(porQuem[q]||0)+x.valor});
   metas.forEach(g=>{metaPrev+=g.mensal;if(pg['m'+g.id])metaReal+=g.mensal});
-  tx.forEach(t=>{if(t.tipo==='entrada'){entPrev+=t.valor;entReal+=t.valor}
+  tx.forEach(t=>{if(t.ajuste){aj+=t.tipo==='entrada'?t.valor:-t.valor;return}
+    if(t.tipo==='entrada'){entPrev+=t.valor;entReal+=t.valor}
     else{const q=t.quem||'Casa';porQuem[q]=(porQuem[q]||0)+t.valor;
       if(!orcCats.has(t.cat)){vr+=t.valor;cats[t.cat]=(cats[t.cat]||0)+t.valor}}});
   const gasto=fixPrev+cartPrev+vr;
   return {rec,tx,pg,parc,metas,orcs,orcCats,entPrev,entReal,fixPrev,fixReal,cartPrev,cartReal,metaPrev,metaReal,vr,cats,porQuem,gasto,
-    saldoPrev:entPrev-gasto-metaPrev,saldoAtual:entReal-fixReal-cartReal-vr-metaReal};
+    aj,saldoPrev:entPrev-gasto-metaPrev+aj,saldoAtual:entReal-fixReal-cartReal-vr-metaReal+aj};
 }
 function orcItems(d){
   const a=d.orcs.map(o=>({nome:o.r.nome,cat:o.r.cat,total:o.v,spent:o.spent}));
@@ -606,7 +608,7 @@ async function saveFile(name,text){
 /* ---------- anexos: foto e localização ---------- */
 let pend={foto:null,loc:null,busy:false},AS=null;
 (async()=>{try{AS=window.claude&&window.claude.use?await window.claude.use('assets'):null}catch(e){AS=null}})();
-const anxTag=t=>(t&&t.foto?'<i class="tag">foto</i>':'')+(t&&(t.loc||t.local)?'<i class="tag">local</i>':'');
+const anxTag=t=>(t&&t.ajuste?'<i class="tag">ajuste</i>':'')+(t&&t.foto?'<i class="tag">foto</i>':'')+(t&&(t.loc||t.local)?'<i class="tag">local</i>':'');
 let SAMP=null;
 (async()=>{try{const s=window.claude&&window.claude.use?await window.claude.use('sample'):null;if(s){const l=s.limits?await s.limits():null;if(l&&l.images)SAMP=s}}catch(e){SAMP=null}
   if(SAMP&&modal&&(modal.type==='addTx'||modal.type==='editTx'))paintAnx()})();
@@ -696,7 +698,7 @@ function carryIn(m){
 function previsao(n){
   const est=varMedio(),out=[];let acc=carryIn(view);
   for(let i=0;i<n;i++){const m=addM(view,i),d=monthData(m),ex=m>curM?est:0;
-    const saidas=d.gasto+d.metaPrev+ex,saldo=d.entPrev-saidas;acc+=saldo;
+    const saidas=d.gasto+d.metaPrev+ex,saldo=d.entPrev-saidas+d.aj;acc+=saldo;
     out.push({m,ent:d.entPrev,fix:d.fixPrev,card:d.cartPrev,meta:d.metaPrev,vr:d.vr+ex,saidas,saldo,acc})}
   return out;
 }
@@ -979,6 +981,7 @@ function vHero(d){
     <div class="hl">${d.metaPrev>0?'Sobra prevista após reservar':'Saldo previsto'} · ${esc(mname(view))}</div>
     <div class="hv ${tp<0?'neg':''}">${brl(tp)}</div>
     <div class="hs">Hoje, com o que já entrou e saiu: <b class="${ta<0?'neg':''}">${brl(ta)}</b></div>
+    ${view===curM?`<div class="hs"><button class="hadj" data-a="open" data-m="ajSaldo">Reajustar saldo</button></div>`:''}
     ${Math.abs(cin)>0.004?`<div class="hs">Inclui <b>${sgn(cin)}</b> ${cin>0?'que sobrou':'que faltou'} dos meses anteriores</div>`:''}
     <div class="hbar" title="A barra inteira representa suas entradas do mês">${segs.map(s=>`<i style="width:${s[1]/base*100}%;background:${s[2]}"></i>`).join('')}</div>
     <div class="hleg">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b>${brl(s[1])}</b></span>`).join('')}</div>
@@ -999,7 +1002,7 @@ function vResumo(){
   const d=monthData(view);
   const lim=S.limite||0;
   const items=orcItems(d),al=alertas(d,items);
-  const nVar=d.tx.filter(t=>t.tipo==='despesa').length;
+  const nVar=d.tx.filter(t=>t.tipo==='despesa'&&!t.ajuste).length;
   const k=[
     kpi('Entradas','var(--pos)',brl(d.entPrev),`recebido ${brl(d.entReal)}`,d.entPrev?d.entReal/d.entPrev*100:0,'fixas'),
     kpi('Despesas fixas','var(--fix)',brl(d.fixPrev),`falta pagar ${brl(d.fixPrev-d.fixReal)}`,d.fixPrev?d.fixReal/d.fixPrev*100:0,'fixas'),
@@ -1029,10 +1032,10 @@ function vLanc(){
   const dayLbl=s=>s===todayStr?'Hoje':dayDiff(s)===-1?'Ontem':new Date(s+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}).replace(/\./g,'');
   const list=Object.keys(groups).map(day=>{const g=groups[day],tot=g.reduce((s,t)=>s+(t.tipo==='entrada'?t.valor:-t.valor),0);
     return `<div class="day"><div class="dh"><span>${esc(dayLbl(day))}</span><span class="num">${tot<0?'−':'+'} ${brl(Math.abs(tot))}</span></div>${g.map(t=>`<div class="it">${av(t.cat,t.tipo)}<button class="n" data-a="open" data-m="editTx" data-id="${t.id}"><b>${esc(t.nome)}${usdTag(t)}${anxTag(t)}${tagsHtml(t.tags)}</b><span>${esc(t.cat)}${t.local?' · '+esc(t.local):''}${t.quem&&t.quem!=='Casa'?' · '+esc(t.quem):''}${origNome(t)?' · '+esc(origNome(t)):''}${t.tipo==='despesa'&&d.orcCats.has(t.cat)?' <i class="tag">do orçamento</i>':''}</span></button><div class="a ${t.tipo==='entrada'?'pos':''}">${t.tipo==='entrada'?'+':'−'} ${brl(t.valor)}</div><button class="icon danger" data-a="delTx" data-id="${t.id}" aria-label="Excluir ${esc(t.nome)}">${ic('trash',17)}</button></div>`).join('')}</div>`}).join('');
-  const sd=d.tx.filter(t=>t.tipo==='despesa').reduce((s,t)=>s+t.valor,0),se=d.tx.filter(t=>t.tipo==='entrada').reduce((s,t)=>s+t.valor,0);
+  const sd=d.tx.filter(t=>t.tipo==='despesa'&&!t.ajuste).reduce((s,t)=>s+t.valor,0),se=d.tx.filter(t=>t.tipo==='entrada'&&!t.ajuste).reduce((s,t)=>s+t.valor,0);
   const chip=(v,l)=>`<button class="chip ${filt===v?'on':''}" data-a="filt" data-v="${v}">${l}</button>`;
   return pageHead('Lançamentos',`Gastos do dia a dia e entradas avulsas · ${esc(mname(view))}`,addBtn('addTx','Novo'))+
-  `<div class="kpis">${kpi('Gastos variáveis','var(--var)',brl(sd),`${d.tx.filter(t=>t.tipo==='despesa').length} lançamentos`,null)}${kpi('Entradas avulsas','var(--pos)',brl(se),`${d.tx.filter(t=>t.tipo==='entrada').length} lançamentos`,null)}</div>`+
+  `<div class="kpis">${kpi('Gastos variáveis','var(--var)',brl(sd),`${d.tx.filter(t=>t.tipo==='despesa'&&!t.ajuste).length} lançamentos`,null)}${kpi('Entradas avulsas','var(--pos)',brl(se),`${d.tx.filter(t=>t.tipo==='entrada'&&!t.ajuste).length} lançamentos`,null)}</div>`+
   (items.length?`<div class="card"><h3>Orçamentos e tetos</h3>${items.map(orcHtml).join('')}<p class="hint">Escolha a categoria certa ao lançar para abater do orçamento.</p></div>`:'')+
   `<div class="card"><div class="sh"><span>Extrato</span><div class="chips">${chip('todos','Todos')}${chip('despesa','Gastos')}${chip('entrada','Entradas')}<button class="chip" data-a="tab" data-t="extrato">Filtros ›</button></div></div>${list||`<div class="empty">Nenhum lançamento ${filt==='todos'?'neste mês':'deste tipo'}.<br><button class="sec" style="margin-top:12px" data-a="open" data-m="addTx">${ic('plus',16)} Lançar agora</button></div>`}</div>`;
 }
@@ -1165,9 +1168,15 @@ function sheet(title,inner){return `<div class="modalbg"><div class="modal" role
 function origAdj(t,sg){if(!t||!t.orig||t.orig.slice(0,2)!=='i:')return;const i=S.inv.find(x=>x.id===+t.orig.slice(2));if(!i)return;i.atual=Math.round(((i.atual||0)+(t.tipo==='entrada'?1:-1)*sg*t.valor)*100)/100;i.aplicado=i.atual;i.atualData=todayStr}
 function origNome(t){if(!t||!t.orig)return '';if(t.orig.slice(0,2)!=='i:')return '';const i=S.inv.find(x=>x.id===+t.orig.slice(2));return i?'pago com '+i.nome:''}
 function origSel(sel,card){const ct=S.inv.filter(i=>i.tipo==='res');return `<label class="full">Pago com / entrou em<select name="orig"><option value="">Conta corrente</option>${card?'<option value="cartao"'+(sel==='cartao'?' selected':'')+'>Cartão de crédito (próxima fatura)</option>':''}${ct.map(i=>`<option value="i:${i.id}"${sel==='i:'+i.id?' selected':''}>${esc(i.nome)}${i.inst?' · '+esc(i.inst):''} (conta investimento)</option>`).join('')}</select></label>`}
+function saldoHoje(){return monthData(curM).saldoAtual+carryIn(curM)}
 function renderModal(){
   if(!modal)return '';
   const bg=sheet;
+  if(modal.type==='ajSaldo'){const ta=saldoHoje();
+    return bg('Reajustar saldo',`<form class="f" data-f="ajSaldo">
+      <p class="hint full" style="margin:0">Pelo app, o seu saldo de hoje é <b>${brl(ta)}</b>. Informe quanto você tem de verdade na conta e o app lança a diferença como “Reajuste de saldo”, sem mexer nas categorias nem nos gastos variáveis.</p>
+      <label class="full">Saldo real na conta (R$)<input class="big" name="real" inputmode="decimal" required placeholder="0,00" data-focus autocomplete="off"></label>
+      <div class="btns full"><button class="pri" type="submit">Reajustar</button></div></form>`)}
   if(modal.type==='addTx'){
     const d=monthData(view),dd=view===curM?todayStr:view+'-01',defCat=d.orcs[0]?d.orcs[0].r.cat:'';
     return bg('Novo lançamento',`<form class="f" data-f="addTx">
@@ -1232,7 +1241,7 @@ function renderModal(){
       <div class="btns full"><button class="pri" type="submit">Adicionar</button></div></form>`)}
   if(modal.type==='invOp'){const i=S.inv.find(x=>x.id===modal.id);if(!i)return '';
     const c=invCusto(i),v=invVal(i),r=v-c,mv=i.tipo==='acao'||i.tipo==='usd';
-    const ops=i.tipo==='acao'?[['in','Comprar'],['out','Vender']]:i.tipo==='usd'?[['in','Comprar US$'],['out','Vender / retirar']]:[['upd','Atualizar saldo'],['in','Aportar'],['out','Resgatar']];
+    const ops=i.tipo==='acao'?[['in','Comprar'],['out','Vender']]:i.tipo==='usd'?[['in','Comprar US$'],['out','Vender / retirar']]:[['upd','Reajustar saldo'],['in','Aportar'],['out','Resgatar']];
     const o0=ops[0][0],pDef=i.tipo==='acao'?(cotAcao(i)?cotAcao(i).v:''):(S.cot.usd||'');
     const info=i.tipo==='acao'?`${qtdF(i.qtd)} cotas · preço médio <b>${brlN(i.pm)}</b>`:i.tipo==='usd'?`${usdF(i.usd)} · dólar médio <b>${brlN(i.dm)}</b>`:i.tipo==='res'?`Saldo <b>${brl(i.atual)}</b>`:`Aplicado <b>${brl(i.aplicado)}</b> · saldo <b>${brl(i.atual)}</b>`;
     const fields=mv?`<label>${i.tipo==='acao'?'Quantidade':'Valor (US$)'}<input name="q" inputmode="decimal" placeholder="0" data-focus></label><label>${i.tipo==='acao'?'Preço (R$)':'Cotação (R$)'}<input name="p" inputmode="decimal" value="${fmtN(pDef)}" placeholder="0,00"></label>`
@@ -1483,6 +1492,10 @@ document.addEventListener('submit',e=>{
     case 'addMeta':{const alvo=need(fd.alvo);if(alvo==null)return bad();
       const b=parseValor(fd.base||''),m=parseValor(fd.mensal||'');
       S.metas.push({id:newId(),nome:fd.nome.trim(),alvo,base:isFinite(b)&&b>0?b:0,mensal:isFinite(m)&&m>0?m:0,ini:view});modal=null;commit();toast('Meta criada.');break}
+    case 'ajSaldo':{const real=parseValor(fd.real||'');if(!isFinite(real))return toast('Informe o saldo real.');
+      const diff=Math.round((real-saldoHoje())*100)/100;if(Math.abs(diff)<0.01){modal=null;render();toast('O saldo já está igual.');break}
+      S.tx.push({id:newId(),data:todayStr,nome:'Reajuste de saldo',valor:Math.abs(diff),tipo:diff>0?'entrada':'despesa',cat:'Reajuste',quem:'Casa',tags:[],ajuste:true});
+      view=curM;modal=null;persistView();commit();toast('Saldo reajustado ('+(diff>0?'+':'−')+' '+brl(Math.abs(diff))+').');break}
     case 'addInv':{const t=f.dataset.t,nome=(fd.nome||'').trim(),inst=(fd.inst||'').trim();
       if(!nome)return toast('Informe o nome ou código da aplicação.');
       const it={id:newId(),tipo:t,nome:t==='acao'?tick(nome):nome,inst,criado:todayStr,realizado:0};
