@@ -301,6 +301,10 @@ form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=
 .modalbg{inset:auto;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100dvh);overscroll-behavior:contain}
 .modal{max-height:92%;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 body:has(.modalbg){overflow:hidden}
+.mh{position:sticky;top:0;z-index:3;background:var(--surface);padding:6px 0 10px;margin-bottom:6px}
+body.kb .modal{padding-bottom:calc(330px + env(safe-area-inset-bottom,0px))}
+input[type=date],input[type=month]{display:block;width:100%;min-width:0;max-width:100%;min-height:46px;-webkit-appearance:none;appearance:none;text-align:left}
+form.f>*{min-width:0}
 </style>
 <div id="root"></div>
 <script id="state" type="application/json">{"rec":[],"tx":[],"pagos":{},"limite":0,"vals":{},"caps":{},"parc":[],"metas":[],"next":1,"v":0,"inv":[],"cot":{"usd":0,"usdData":null,"t":{}},"cats":{"d":[],"e":[]}}</script>
@@ -862,7 +866,7 @@ function render(){refreshCats();
   if(tab==='ditar')renderPreview();
   if(modal&&modal.focus){modal.focus=false;const i=$('.modal [data-focus]');if(i)try{i.focus({preventScroll:true})}catch(e){}}
 }
-function sheet(title,inner){return `<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh"><h3>${esc(title)}</h3><button class="icon" data-a="closeModal" aria-label="Fechar">${ic('x',20)}</button></div>${inner}</div></div>`}
+function sheet(title,inner){return `<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh"><h3>${esc(title)}</h3><span style="display:flex;gap:6px;align-items:center">${inner.includes('data-f=')?'<button class="pri mini" data-a="submitModal">Salvar</button>':''}<button class="icon" data-a="closeModal" aria-label="Fechar">${ic('x',20)}</button></span></div>${inner}</div></div>`}
 function renderModal(){
   if(!modal)return '';
   const bg=sheet;
@@ -1041,6 +1045,7 @@ document.addEventListener('click',e=>{
     case 'efclear':ef={tipo:'todos',cat:'',tag:'',quem:'',q:''};render();break;
     case 'tagFilter':ef={tipo:'todos',cat:'',tag:el.dataset.n,quem:'',q:''};tab='extrato';modal=null;persistView();render();window.scrollTo(0,0);break;
     case 'qrefresh':refreshQuotes(true);break;
+    case 'submitModal':{const f=document.querySelector('.modal form[data-f]');if(f){if(f.requestSubmit)f.requestSubmit();else f.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}))}break}
     case 'delCat':{const k=el.dataset.t,n=el.dataset.n;S.cats[k]=S.cats[k].filter(c=>c!==n);commit();toast('Categoria removida da lista.');break}
     case 'delTag':{const n=el.dataset.n;[S.tx,S.rec,S.parc].forEach(L=>L.forEach(x=>{if(x.tags)x.tags=x.tags.filter(t=>t!==n)}));if(ef.tag===n)ef.tag='';commit();toast('Tag removida.');break}
     case 'delTx':S.tx=S.tx.filter(t=>t.id!==id);modal=null;commit();break;
@@ -1184,7 +1189,11 @@ document.addEventListener('submit',e=>{
 })();
 
 (function(){const vv=window.visualViewport;if(!vv)return;const f=()=>{const r=document.documentElement.style;r.setProperty('--vvh',vv.height+'px');r.setProperty('--vvt',vv.offsetTop+'px')};vv.addEventListener('resize',f);vv.addEventListener('scroll',f);f()})();
-document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.closest&&t.closest('.modal')&&/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))setTimeout(()=>{try{t.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){}},320)});
+document.addEventListener('focusin',e=>{const t=e.target;if(!(t&&t.closest&&t.closest('.modal')&&/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)))return;
+  const txt=t.matches('input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=month]):not([type=file]),textarea'),vv=window.visualViewport;
+  if(txt&&(!vv||vv.height>=window.innerHeight-80))document.body.classList.add('kb');
+  setTimeout(()=>{try{t.scrollIntoView({block:'center',behavior:'smooth'})}catch(x){}},320)});
+document.addEventListener('focusout',()=>setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches('.modal input,.modal textarea'))document.body.classList.remove('kb')},200));
 render();
 setTimeout(()=>refreshQuotes(false),400);
 })();
