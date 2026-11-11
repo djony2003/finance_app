@@ -658,17 +658,17 @@ const kfmt=v=>Math.abs(v)>=1000?(v/1000).toLocaleString('pt-BR',{maximumFraction
 function saldoIniCard(){const f=allMonths()[0]||curM;return `<div class="card"><h3>Saldo inicial</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Em ${esc(mname(f))} (R$)<input id="sini" inputmode="decimal" placeholder="0,00" value="${S.saldoIni?String(S.saldoIni).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">Quanto você tinha disponível no começo de ${esc(mlabel(f))}. A sobra de cada mês passa para o seguinte, descontando o que você destinar a metas ou aplicações ao fechar o mês.</span></div></div>`}
 function vPrev(){
   const L=previsao(6),est=varMedio(),neg=L.filter(x=>x.acc<0);
-  const mx=Math.max(1,...L.map(x=>Math.abs(x.saldo)));
+  const mx=Math.max(1,...L.map(x=>Math.abs(x.acc)));
   const W=360,H=196,base=98,hh=62,gw=58;
   let g=`<line x1="6" x2="354" y1="${base}" y2="${base}" stroke="var(--bd)"/>`;
-  L.forEach((x,i)=>{const x0=i*gw+16,h=Math.max(2,Math.abs(x.saldo)/mx*hh),up=x.saldo>=0;
-    g+=`<rect x="${x0}" y="${up?base-h:base}" width="30" height="${h}" rx="5" fill="${up?'var(--pos)':'var(--neg)'}" opacity="${i===0?1:.8}"><title>${esc(mshort(x.m))} · ${brl(x.saldo)}</title></rect>`;
-    g+=`<text x="${x0+15}" y="${up?base-h-6:base+h+14}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--tx)">${esc(kfmt(x.saldo))}</text>`;
+  L.forEach((x,i)=>{const x0=i*gw+16,h=Math.max(2,Math.abs(x.acc)/mx*hh),up=x.acc>=0;
+    g+=`<rect x="${x0}" y="${up?base-h:base}" width="30" height="${h}" rx="5" fill="${up?'var(--pos)':'var(--neg)'}" opacity="${i===0?1:.8}"><title>${esc(mshort(x.m))} · acumulado ${brl(x.acc)}</title></rect>`;
+    g+=`<text x="${x0+15}" y="${up?base-h-6:base+h+14}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--tx)">${esc(kfmt(x.acc))}</text>`;
     g+=`<text x="${x0+15}" y="${H-6}" text-anchor="middle" font-size="11" font-weight="${i===0?700:500}" fill="${i===0?'var(--tx)':'var(--mut)'}">${esc(mshort(x.m))}</text>`});
-  const rows=L.map(x=>`<tr><td><b>${esc(cap(mname(x.m)))}</b><div class="sm mut">entradas ${brl(x.ent)} · fixas ${brl(x.fix)} · cartão ${brl(x.card)} · variáveis ${brl(x.vr)}${x.meta>0?' · reserva '+brl(x.meta):''}</div></td><td class="r ${x.saldo<0?'neg':'pos'}">${brl(x.saldo)}</td><td class="r ${x.acc<0?'neg':''}"><b>${brl(x.acc)}</b></td></tr>`).join('');
+  const rows=L.map(x=>`<tr><td><b>${esc(cap(mname(x.m)))}</b></td><td class="r ${x.saldo<0?'neg':'pos'}">${brl(x.saldo)}</td><td class="r ${x.acc<0?'neg':''}"><b>${brl(x.acc)}</b></td></tr><tr><td colspan="3" class="sm mut" style="padding-top:0">entradas ${brl(x.ent)} · fixas ${brl(x.fix)} · cartão ${brl(x.card)} · variáveis ${brl(x.vr)}${x.meta>0?' · reserva '+brl(x.meta):''}</td></tr>`).join('');
   const alert=neg.length?`<div class="card"><h3>Atenção <small>${neg.length}</small></h3>${neg.map(x=>`<div class="al neg"><span class="ic">${ic('alert',18)}</span><p>${esc(cap(mname(x.m)))} deve fechar com saldo negativo de ${brl(-x.acc)}.</p></div>`).join('')}</div>`:`<div class="card"><div class="al" style="border:0;padding:0"><p class="pos">Nos próximos 6 meses o saldo previsto fica positivo.</p></div></div>`;
   return pageHead('Previsão','Saldo previsto dos próximos meses, com contas fixas, parcelas do cartão e reservas.')+alert+
-  `<div class="card"><h3>Saldo previsto por mês</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Saldo previsto dos próximos 6 meses">${g}</svg></div>`+
+  `<div class="card"><h3>Saldo acumulado por mês</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Saldo acumulado dos próximos 6 meses">${g}</svg></div>`+
   `<div class="card"><h3>Mês a mês <small>saldo inicial ${brl(carryIn(view))}</small></h3><div class="tbl"><table class="rt"><thead><tr><th>Mês</th><th class="r">No mês</th><th class="r">Acumulado</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+
   `<div class="card"><h3>Gastos variáveis estimados</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Por mês (R$)<input id="pvar" inputmode="decimal" placeholder="${esc(String(Math.round(varMedio())))}" value="${S.prevVar?String(S.prevVar).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">${S.prevVar>0?'Valor definido por você.':'Sem valor, o app usa a média dos últimos meses: '+brl(est)+'.'} Entra na previsão dos meses futuros, além dos orçamentos e contas fixas.</span></div></div>`+saldoIniCard();
 }
