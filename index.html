@@ -329,7 +329,7 @@ form.f>*{min-width:0}
 (function(){
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function norm(o){if(!o||typeof o!=='object')o={};o.rec=o.rec||[];o.tx=o.tx||[];o.pagos=o.pagos||{};o.limite=o.limite||0;o.next=o.next||1;o.v=o.v||0;o.vals=o.vals||{};o.caps=o.caps||{};o.parc=o.parc||[];o.metas=o.metas||[];o.inv=o.inv||[];o.cot=o.cot||{};o.cot.t=o.cot.t||{};o.tema=o.tema||'auto';o.fech=o.fech||{};o.saldoIni=o.saldoIni||0;o.prevVar=o.prevVar||0;o.cats=o.cats||{};o.cats.d=o.cats.d||[];o.cats.e=o.cats.e||[];return o}
+function norm(o){if(!o||typeof o!=='object')o={};o.rec=o.rec||[];o.tx=o.tx||[];o.pagos=o.pagos||{};o.limite=o.limite||0;o.next=o.next||1;o.v=o.v||0;o.vals=o.vals||{};o.caps=o.caps||{};o.parc=o.parc||[];o.metas=o.metas||[];o.inv=o.inv||[];o.cot=o.cot||{};o.cot.t=o.cot.t||{};o.tema=o.tema||'auto';o.fech=o.fech||{};o.saldoIni=o.saldoIni||0;o.prevVar=o.prevVar||0;o.cats=o.cats||{};o.cats.d=o.cats.d||[];o.cats.e=o.cats.e||[];o.inv.forEach(i=>{if(i.tipo==='res'){const s=i.atual!=null?i.atual:i.aplicado;i.atual=s;i.aplicado=s}});return o}
 let S=null;
 try{S=JSON.parse($('#state').textContent)}catch(e){}
 S=norm(S);
@@ -516,9 +516,10 @@ function invRow(i){
   const c=invCusto(i),v=invVal(i),r=v-c,p=c?r/c:0,inst=i.inst?esc(i.inst)+' · ':'';let sub;
   if(i.tipo==='acao'){const q=cotAcao(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${brlN(i.pm)} · ${q?'fech. '+brlN(q.v):'sem cotação'}`}
   else if(i.tipo==='usd')sub=`${inst}${usdF(i.usd)} · dólar médio ${brlN(i.dm)} · hoje ${S.cot.usd?brlN(S.cot.usd):'—'}`;
+  else if(i.tipo==='res')sub=`${inst}saldo em conta${i.atualData?' · de '+dmy(i.atualData):''} · sem rendimento calculado`;
   else sub=`${inst}aplicado ${brl(i.aplicado)}${i.atualData?' · saldo de '+dmy(i.atualData):''}${i.venc?' · vence '+i.venc.split('-').reverse().join('/'):''}`;
   const lbl=i.tipo==='acao'?tick(i.nome).slice(0,2):i.tipo==='usd'?'$':(i.nome||'?').charAt(0).toUpperCase();
-  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${sgn(r)} · ${pctF(p)}</small></div></div>`;
+  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${sgn(r)} · ${pctF(p)}</small>`}</div></div>`;
 }
 function vInv(){
   const L=S.inv,tot=invSum(L);
@@ -976,7 +977,7 @@ function vLanc(){
   const groups={};tx.forEach(t=>{(groups[t.data]=groups[t.data]||[]).push(t)});
   const dayLbl=s=>s===todayStr?'Hoje':dayDiff(s)===-1?'Ontem':new Date(s+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}).replace(/\./g,'');
   const list=Object.keys(groups).map(day=>{const g=groups[day],tot=g.reduce((s,t)=>s+(t.tipo==='entrada'?t.valor:-t.valor),0);
-    return `<div class="day"><div class="dh"><span>${esc(dayLbl(day))}</span><span class="num">${tot<0?'−':'+'} ${brl(Math.abs(tot))}</span></div>${g.map(t=>`<div class="it">${av(t.cat,t.tipo)}<button class="n" data-a="open" data-m="editTx" data-id="${t.id}"><b>${esc(t.nome)}${usdTag(t)}${anxTag(t)}${tagsHtml(t.tags)}</b><span>${esc(t.cat)}${t.local?' · '+esc(t.local):''}${t.quem&&t.quem!=='Casa'?' · '+esc(t.quem):''}${t.tipo==='despesa'&&d.orcCats.has(t.cat)?' <i class="tag">do orçamento</i>':''}</span></button><div class="a ${t.tipo==='entrada'?'pos':''}">${t.tipo==='entrada'?'+':'−'} ${brl(t.valor)}</div><button class="icon danger" data-a="delTx" data-id="${t.id}" aria-label="Excluir ${esc(t.nome)}">${ic('trash',17)}</button></div>`).join('')}</div>`}).join('');
+    return `<div class="day"><div class="dh"><span>${esc(dayLbl(day))}</span><span class="num">${tot<0?'−':'+'} ${brl(Math.abs(tot))}</span></div>${g.map(t=>`<div class="it">${av(t.cat,t.tipo)}<button class="n" data-a="open" data-m="editTx" data-id="${t.id}"><b>${esc(t.nome)}${usdTag(t)}${anxTag(t)}${tagsHtml(t.tags)}</b><span>${esc(t.cat)}${t.local?' · '+esc(t.local):''}${t.quem&&t.quem!=='Casa'?' · '+esc(t.quem):''}${origNome(t)?' · '+esc(origNome(t)):''}${t.tipo==='despesa'&&d.orcCats.has(t.cat)?' <i class="tag">do orçamento</i>':''}</span></button><div class="a ${t.tipo==='entrada'?'pos':''}">${t.tipo==='entrada'?'+':'−'} ${brl(t.valor)}</div><button class="icon danger" data-a="delTx" data-id="${t.id}" aria-label="Excluir ${esc(t.nome)}">${ic('trash',17)}</button></div>`).join('')}</div>`}).join('');
   const sd=d.tx.filter(t=>t.tipo==='despesa').reduce((s,t)=>s+t.valor,0),se=d.tx.filter(t=>t.tipo==='entrada').reduce((s,t)=>s+t.valor,0);
   const chip=(v,l)=>`<button class="chip ${filt===v?'on':''}" data-a="filt" data-v="${v}">${l}</button>`;
   return pageHead('Lançamentos',`Gastos do dia a dia e entradas avulsas · ${esc(mname(view))}`,addBtn('addTx','Novo'))+
@@ -1110,6 +1111,9 @@ function render(){refreshCats();applyTema();
   if(modal&&modal.focus){modal.focus=false;const i=$('.modal [data-focus]');if(i)try{i.focus({preventScroll:true})}catch(e){}}
 }
 function sheet(title,inner){return `<div class="modalbg"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="mh"><h3>${esc(title)}</h3><span style="display:flex;gap:6px;align-items:center">${inner.includes('data-f=')?'<button class="pri mini" data-a="submitModal">Salvar</button>':''}<button class="icon" data-a="closeModal" aria-label="Fechar">${ic('x',20)}</button></span></div>${inner}</div></div>`}
+function origAdj(t,sg){if(!t||!t.orig||t.orig.slice(0,2)!=='i:')return;const i=S.inv.find(x=>x.id===+t.orig.slice(2));if(!i)return;i.atual=Math.round(((i.atual||0)+(t.tipo==='entrada'?1:-1)*sg*t.valor)*100)/100;i.aplicado=i.atual;i.atualData=todayStr}
+function origNome(t){if(!t||!t.orig)return '';if(t.orig.slice(0,2)!=='i:')return '';const i=S.inv.find(x=>x.id===+t.orig.slice(2));return i?'pago com '+i.nome:''}
+function origSel(sel,card){const ct=S.inv.filter(i=>i.tipo==='res');return `<label class="full">Pago com / entrou em<select name="orig"><option value="">Conta corrente</option>${card?'<option value="cartao"'+(sel==='cartao'?' selected':'')+'>Cartão de crédito (próxima fatura)</option>':''}${ct.map(i=>`<option value="i:${i.id}"${sel==='i:'+i.id?' selected':''}>${esc(i.nome)}${i.inst?' · '+esc(i.inst):''} (conta investimento)</option>`).join('')}</select></label>`}
 function renderModal(){
   if(!modal)return '';
   const bg=sheet;
@@ -1124,6 +1128,7 @@ function renderModal(){
       <label class="chk full"><input type="checkbox" name="usd"> Valor em dólar (US$): converte pela cotação do dia</label>
       <label class="full">Local (opcional)<input name="local" placeholder="Mercado Extra, Centro" autocomplete="off"></label>
       <div class="full" id="anx">${anxHtml()}</div>
+      ${origSel('',true)}
       <label class="full">Quem<select name="quem">${opts(PESSOAS)}</select></label>
       ${tagField()}
       <div class="btns full"><button class="pri" type="submit">Adicionar</button></div>
@@ -1163,7 +1168,7 @@ function renderModal(){
       <div class="seg5 full">${Object.entries(INVT).map(([k,v])=>`<label><input type="radio" name="itipo" value="${k}"${k===t?' checked':''}><span>${v[0]}</span></label>`).join('')}</div>
       <label class="full">Nome ou código<input name="nome" placeholder="CDB Inter, Tesouro Selic, PETR4, conta Wise…" autocomplete="off" data-focus></label>
       <label class="full">Instituição<input name="inst" placeholder="Corretora ou banco (opcional)" autocomplete="off"></label>
-      <label class="fx k-rf k-rv k-res">Valor aplicado (R$)<input name="aplicado" inputmode="decimal" placeholder="0,00"></label>
+      <label class="fx k-rf k-rv">Valor aplicado (R$)<input name="aplicado" inputmode="decimal" placeholder="0,00"></label>
       <label class="fx k-rf k-rv k-res">Saldo atual (R$)<input name="atual" inputmode="decimal" placeholder="igual ao aplicado"></label>
       <label class="fx k-rf full">Vencimento<input name="venc" type="date"></label>
       <label class="fx k-acao">Quantidade<input name="qtd" inputmode="decimal" placeholder="100"></label>
@@ -1178,17 +1183,17 @@ function renderModal(){
     const c=invCusto(i),v=invVal(i),r=v-c,mv=i.tipo==='acao'||i.tipo==='usd';
     const ops=i.tipo==='acao'?[['in','Comprar'],['out','Vender']]:i.tipo==='usd'?[['in','Comprar US$'],['out','Vender / retirar']]:[['upd','Atualizar saldo'],['in','Aportar'],['out','Resgatar']];
     const o0=ops[0][0],pDef=i.tipo==='acao'?(cotAcao(i)?cotAcao(i).v:''):(S.cot.usd||'');
-    const info=i.tipo==='acao'?`${qtdF(i.qtd)} cotas · preço médio <b>${brlN(i.pm)}</b>`:i.tipo==='usd'?`${usdF(i.usd)} · dólar médio <b>${brlN(i.dm)}</b>`:`Aplicado <b>${brl(i.aplicado)}</b> · saldo <b>${brl(i.atual)}</b>`;
+    const info=i.tipo==='acao'?`${qtdF(i.qtd)} cotas · preço médio <b>${brlN(i.pm)}</b>`:i.tipo==='usd'?`${usdF(i.usd)} · dólar médio <b>${brlN(i.dm)}</b>`:i.tipo==='res'?`Saldo <b>${brl(i.atual)}</b>`:`Aplicado <b>${brl(i.aplicado)}</b> · saldo <b>${brl(i.atual)}</b>`;
     const fields=mv?`<label>${i.tipo==='acao'?'Quantidade':'Valor (US$)'}<input name="q" inputmode="decimal" placeholder="0" data-focus></label><label>${i.tipo==='acao'?'Preço (R$)':'Cotação (R$)'}<input name="p" inputmode="decimal" value="${fmtN(pDef)}" placeholder="0,00"></label>`
       :`<label class="full ox o-upd">Saldo atual (R$)<input name="s" inputmode="decimal" value="${fmtN(i.atual)}" data-focus></label><label class="full ox o-in o-out">Valor (R$)<input name="v" inputmode="decimal" placeholder="0,00"></label>`;
-    return bg(i.tipo==='acao'?tick(i.nome):i.nome,`<div class="sumbox">${INVT[i.tipo][0]}${i.inst?' · '+esc(i.inst):''}<br>${info}<br>Hoje <b>${brl(v)}</b> · resultado <b class="${r<-0.004?'neg':'pos'}">${sgn(r)} (${pctF(c?r/c:0)})</b>${Math.abs(i.realizado||0)>0.004?`<br>Lucro realizado <b>${sgn(i.realizado)}</b>`:''}</div>
+    return bg(i.tipo==='acao'?tick(i.nome):i.nome,`<div class="sumbox">${INVT[i.tipo][0]}${i.inst?' · '+esc(i.inst):''}<br>${info}<br>Hoje <b>${brl(v)}</b>${i.tipo==='res'?'':` · resultado <b class="${r<-0.004?'neg':'pos'}">${sgn(r)} (${pctF(c?r/c:0)})</b>`}${Math.abs(i.realizado||0)>0.004?`<br>Lucro realizado <b>${sgn(i.realizado)}</b>`:''}</div>
       <form class="f" data-f="invOp" data-o="${o0}"><div class="seg5 full">${ops.map(([k,l])=>`<label><input type="radio" name="oper" value="${k}"${k===o0?' checked':''}><span>${l}</span></label>`).join('')}</div>
       ${fields}<div class="btns full"><button class="pri" type="submit">Confirmar</button></div></form>
       <div class="links" style="margin-top:14px"><button class="sec mini" data-a="open" data-m="editInv" data-id="${i.id}">${ic('edit',15)} Editar dados</button><button class="sec mini danger" data-a="open" data-m="delInv" data-id="${i.id}">${ic('trash',15)} Excluir</button></div>`)}
   if(modal.type==='editInv'){const i=S.inv.find(x=>x.id===modal.id);if(!i)return '';
     const extra=i.tipo==='acao'?`<label>Quantidade<input name="qtd" inputmode="decimal" value="${fmtN(i.qtd)}"></label><label>Preço médio (R$)<input name="pm" inputmode="decimal" value="${fmtN(i.pm)}"></label>`
       :i.tipo==='usd'?`<label>Saldo (US$)<input name="usd" inputmode="decimal" value="${fmtN(i.usd)}"></label><label>Dólar médio (R$)<input name="dm" inputmode="decimal" value="${fmtN(i.dm)}"></label>`
-      :`<label>Valor aplicado (R$)<input name="aplicado" inputmode="decimal" value="${fmtN(i.aplicado)}"></label><label>Saldo atual (R$)<input name="atual" inputmode="decimal" value="${fmtN(i.atual)}"></label>${i.tipo==='rf'?`<label class="full">Vencimento<input name="venc" type="date" value="${i.venc||''}"></label>`:''}`;
+      :`${i.tipo==='res'?'':`<label>Valor aplicado (R$)<input name="aplicado" inputmode="decimal" value="${fmtN(i.aplicado)}"></label>`}<label${i.tipo==='res'?' class="full"':''}>Saldo atual (R$)<input name="atual" inputmode="decimal" value="${fmtN(i.atual)}"></label>${i.tipo==='rf'?`<label class="full">Vencimento<input name="venc" type="date" value="${i.venc||''}"></label>`:''}`;
     return bg('Editar aplicação',`<form class="f" data-f="editInv"><label class="full">Nome ou código<input name="nome" value="${esc(i.nome)}"></label><label class="full">Instituição<input name="inst" value="${esc(i.inst||'')}"></label>${extra}<p class="hint full" style="margin:0">Use para corrigir dados. Compras e vendas novas vão em “Comprar” e “Vender”.</p><div class="btns full"><button class="pri" type="submit">Salvar</button></div></form>`)}
   if(modal.type==='delInv'){const i=S.inv.find(x=>x.id===modal.id);if(!i)return '';
     return bg(`Excluir “${i.nome}”?`,`<p>A aplicação sai da carteira e do patrimônio.</p><div class="btns"><button class="pri" style="background:var(--neg);border-color:var(--neg)" data-a="purgeInv" data-id="${i.id}">Excluir</button><button class="sec" data-a="closeModal">Cancelar</button></div>`)}
@@ -1202,6 +1207,7 @@ function renderModal(){
       <label class="full">Descrição<input name="nome" required value="${esc(t.nome)}"></label>
       <label>Categoria<select name="cat">${opts(cs,t.cat)}</select></label>
       <label>Data<input name="data" type="date" required value="${t.data}"></label>
+      ${origSel(t.orig||'',false)}
       <label class="full">Quem<select name="quem">${opts(PESSOAS,t.quem||'Casa')}</select></label>
       ${tagField(t.tags)}
       <label class="full">Local (opcional)<input name="local" value="${esc(t.local||'')}" placeholder="Mercado Extra, Centro" autocomplete="off"></label>
@@ -1313,7 +1319,7 @@ document.addEventListener('click',e=>{
     case 'submitModal':{const f=document.querySelector('.modal form[data-f]');if(f){if(f.requestSubmit)f.requestSubmit();else f.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}))}break}
     case 'delCat':{const k=el.dataset.t,n=el.dataset.n;S.cats[k]=S.cats[k].filter(c=>c!==n);commit();toast('Categoria removida da lista.');break}
     case 'delTag':{const n=el.dataset.n;[S.tx,S.rec,S.parc].forEach(L=>L.forEach(x=>{if(x.tags)x.tags=x.tags.filter(t=>t!==n)}));if(ef.tag===n)ef.tag='';commit();toast('Tag removida.');break}
-    case 'delTx':S.tx=S.tx.filter(t=>t.id!==id);modal=null;commit();break;
+    case 'delTx':origAdj(S.tx.find(t=>t.id===id),-1);S.tx=S.tx.filter(t=>t.id!==id);modal=null;commit();break;
     case 'delRec':modal={type:'del',id};render();break;
     case 'editRec':modal={type:'edit',id};render();break;
     case 'editMonth':modal={type:'month',id};render();break;
@@ -1389,14 +1395,16 @@ document.addEventListener('submit',e=>{
   const bad=()=>toast('Informe um valor válido.');
   switch(f.dataset.f){
     case 'addTx':{const valor=need(fd.valor);if(valor==null)return bad();
-      if(pend.busy)return toast('Aguarde o envio da foto.');const cv=conv(fd,valor);if(!cv)return;S.tx.push({id:newId(),data:fd.data,nome:fd.nome.trim(),valor:cv.valor,usd:cv.usd,taxa:cv.taxa,foto:pend.foto||undefined,loc:pend.loc||undefined,local:(fd.local||'').trim()||undefined,tipo:fd.tipo,cat:fd.cat,quem:fd.quem||'Casa',tags:parseTags(fd.tags)});view=fd.data.slice(0,7);modal=null;persistView();commit();toast((fd.tipo==='entrada'?'Entrada':'Gasto')+' de '+brl(valor)+' lançado.');break}
+      if(pend.busy)return toast('Aguarde o envio da foto.');const cv=conv(fd,valor);if(!cv)return;
+      if(fd.orig==='cartao'&&fd.tipo==='despesa'){S.parc.push({id:newId(),nome:fd.nome.trim(),total:cv.valor,usd:cv.usd,taxa:cv.taxa,n:1,ini:fd.data.slice(0,7),dia:clampDia(+fd.data.slice(8)),cat:fd.cat,quem:fd.quem||'Casa',tags:parseTags(fd.tags)});view=fd.data.slice(0,7);modal=null;persistView();commit();toast('Compra de '+brl(valor)+' lançada no cartão.');break}
+      const _t={id:newId(),data:fd.data,nome:fd.nome.trim(),valor:cv.valor,usd:cv.usd,taxa:cv.taxa,foto:pend.foto||undefined,loc:pend.loc||undefined,local:(fd.local||'').trim()||undefined,tipo:fd.tipo,cat:fd.cat,quem:fd.quem||'Casa',tags:parseTags(fd.tags)};if(fd.orig&&fd.orig.slice(0,2)==='i:')_t.orig=fd.orig;S.tx.push(_t);origAdj(_t,1);view=fd.data.slice(0,7);modal=null;persistView();commit();toast((fd.tipo==='entrada'?'Entrada':'Gasto')+' de '+brl(valor)+' lançado.');break}
     case 'fechar':{const m=view,I=fechInfo(m),v=fd.valor?parseValor(fd.valor):0,val=isFinite(v)&&v>0?v:0;let dest=null;
       if(val>0&&fd.dest&&fd.dest!=='none'){const [k,id]=fd.dest.split(':');
         if(k==='m'){const g=S.metas.find(x=>x.id===+id);if(g){g.base=Math.round((g.base+val)*100)/100;dest={k:'m',id:g.id,nome:g.nome,v:val}}}
         else{const i=S.inv.find(x=>x.id===+id);if(i){i.aplicado=Math.round((i.aplicado+val)*100)/100;i.atual=Math.round((i.atual+val)*100)/100;i.atualData=todayStr;dest={k:'i',id:i.id,nome:i.nome,v:val}}}}
       S.fech[m]={t:todayStr,ent:Math.round(I.d.entPrev*100)/100,saidas:Math.round((I.d.gasto+I.d.metaPrev)*100)/100,sobra:Math.round(I.sobra*100)/100,pend:I.pend.length,dest};commit();toast('Mês fechado.');break}
     case 'editTx':{const t=S.tx.find(x=>x.id===modal.id);if(!t)break;const valor=need(fd.valor);if(valor==null)return bad();
-      if(pend.busy)return toast('Aguarde o envio da foto.');Object.assign(t,{nome:fd.nome.trim(),valor,cat:fd.cat,data:fd.data,quem:fd.quem||'Casa',tags:parseTags(fd.tags),foto:pend.foto||undefined,loc:pend.loc||undefined,local:(fd.local||'').trim()||undefined});view=fd.data.slice(0,7);modal=null;persistView();commit();toast('Lançamento atualizado.');break}
+      if(pend.busy)return toast('Aguarde o envio da foto.');origAdj(t,-1);t.orig=fd.orig&&fd.orig.slice(0,2)==='i:'?fd.orig:undefined;Object.assign(t,{nome:fd.nome.trim(),valor,cat:fd.cat,data:fd.data,quem:fd.quem||'Casa',tags:parseTags(fd.tags),foto:pend.foto||undefined,loc:pend.loc||undefined,local:(fd.local||'').trim()||undefined});origAdj(t,1);view=fd.data.slice(0,7);modal=null;persistView();commit();toast('Lançamento atualizado.');break}
     case 'addCat':{const k=f.dataset.t,nome=(fd.nome||'').trim().slice(0,30);if(!nome)return;const base=k==='d'?BASE_CD:BASE_CE;
       if(base.concat(S.cats[k]).some(c=>c.toLowerCase()===nome.toLowerCase()))return toast('Essa categoria já existe.');S.cats[k].push(nome);commit();toast('Categoria criada.');break}
     case 'addRec':{const valor=need(fd.valor);if(valor==null)return bad();const dep=fd.tipo==='despesa';
@@ -1425,6 +1433,7 @@ document.addEventListener('submit',e=>{
       const it={id:newId(),tipo:t,nome:t==='acao'?tick(nome):nome,inst,criado:todayStr,realizado:0};
       if(t==='acao'){const q=numQ(fd.qtd),pm=numP(fd.pm);if(!(q>0)||!(pm>0))return toast('Informe a quantidade e o preço médio.');Object.assign(it,{qtd:q,pm});const c=numP(fd.cotA);if(c>0)S.cot.t[it.nome]={v:c,d:todayStr}}
       else if(t==='usd'){const u=numP(fd.usd),dm=numP(fd.dm);if(!(u>0)||!(dm>0))return toast('Informe o saldo em US$ e o dólar médio pago.');Object.assign(it,{usd:u,dm});const c=numP(fd.cotU);if(c>0&&c!==S.cot.usd){S.cot.usd=c;S.cot.usdData=todayStr}}
+      else if(t==='res'){const at=parseValor(fd.atual||'');if(!(at>=0))return toast('Informe o saldo.');Object.assign(it,{aplicado:at,atual:at,atualData:todayStr,venc:null})}
       else{const a=need(fd.aplicado);if(a==null)return toast('Informe o valor aplicado.');const at=parseValor(fd.atual||'');Object.assign(it,{aplicado:a,atual:isFinite(at)&&at>0?at:a,atualData:todayStr,venc:t==='rf'&&fd.venc?fd.venc:null})}
       S.inv.push(it);modal=null;tab='inv';persistView();commit();toast('Aplicação adicionada.');break}
     case 'invOp':{const i=S.inv.find(x=>x.id===modal.id);if(!i)break;const o=f.dataset.o;
@@ -1434,7 +1443,7 @@ document.addEventListener('submit',e=>{
         if(o==='in'){i[mk]=Math.round((i[k]*i[mk]+q*pr)/(i[k]+q)*1e6)/1e6;i[k]=+(i[k]+q).toFixed(8);modal=null;commit();toast('Compra registrada. Novo médio: '+brlN(i[mk])+'.')}
         else{if(q>i[k]+1e-9)return toast('Valor maior que o saldo da aplicação.');const g=q*(pr-i[mk]);i.realizado=(i.realizado||0)+g;i[k]=+(i[k]-q).toFixed(8);modal=null;commit();toast('Venda registrada. Resultado '+sgn(g)+'.')}
       }else{
-        if(o==='upd'){const v=parseValor(fd.s||'');if(!(isFinite(v)&&v>=0))return toast('Informe o saldo atual.');i.atual=v;i.atualData=todayStr;modal=null;commit();toast('Saldo atualizado.')}
+        if(o==='upd'){const v=parseValor(fd.s||'');if(!(isFinite(v)&&v>=0))return toast('Informe o saldo atual.');i.atual=v;if(i.tipo==='res')i.aplicado=v;i.atualData=todayStr;modal=null;commit();toast('Saldo atualizado.')}
         else{const v=need(fd.v);if(v==null)return toast('Informe o valor.');
           if(o==='in'){i.aplicado=Math.round((i.aplicado+v)*100)/100;i.atual=Math.round((i.atual+v)*100)/100;modal=null;commit();toast('Aporte registrado.')}
           else{if(v>i.atual+0.004)return toast('Valor maior que o saldo atual.');const fr=i.atual?v/i.atual:1,g=v-i.aplicado*fr;i.realizado=(i.realizado||0)+g;i.aplicado=Math.round(i.aplicado*(1-fr)*100)/100;i.atual=Math.round((i.atual-v)*100)/100;modal=null;commit();toast('Resgate registrado. Rendimento '+sgn(g)+'.')}}
@@ -1443,6 +1452,7 @@ document.addEventListener('submit',e=>{
       const oldT=tick(i.nome);i.nome=i.tipo==='acao'?tick(nome):nome;i.inst=(fd.inst||'').trim();
       if(i.tipo==='acao'){const q=numQ(fd.qtd),pm=numP(fd.pm);if(!(q>=0)||!(pm>0))return toast('Confira quantidade e preço médio.');i.qtd=q;i.pm=pm;if(oldT!==i.nome&&S.cot.t[oldT]&&!S.inv.some(x=>x!==i&&x.tipo==='acao'&&tick(x.nome)===oldT)){S.cot.t[i.nome]=S.cot.t[i.nome]||S.cot.t[oldT];delete S.cot.t[oldT]}}
       else if(i.tipo==='usd'){const u=numP(fd.usd),dm=numP(fd.dm);if(!(u>=0)||!(dm>0))return toast('Confira saldo e dólar médio.');i.usd=u;i.dm=dm}
+      else if(i.tipo==='res'){const at=parseValor(fd.atual||'');if(!(at>=0))return toast('Confira o saldo.');i.aplicado=at;i.atual=at;i.atualData=todayStr}
       else{const a=parseValor(fd.aplicado||''),at=parseValor(fd.atual||'');if(!(a>=0)||!(at>=0))return toast('Confira os valores.');i.aplicado=a;i.atual=at;if(i.tipo==='rf')i.venc=fd.venc||null}
       modal=null;commit();toast('Aplicação atualizada.');break}
     case 'metaAdd':{const valor=need(fd.valor);if(valor==null)return bad();
