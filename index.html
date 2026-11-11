@@ -329,7 +329,7 @@ form.f>*{min-width:0}
 (function(){
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function norm(o){if(!o||typeof o!=='object')o={};o.rec=o.rec||[];o.tx=o.tx||[];o.pagos=o.pagos||{};o.limite=o.limite||0;o.next=o.next||1;o.v=o.v||0;o.vals=o.vals||{};o.caps=o.caps||{};o.parc=o.parc||[];o.metas=o.metas||[];o.inv=o.inv||[];o.cot=o.cot||{};o.cot.t=o.cot.t||{};o.tema=o.tema||'auto';o.fech=o.fech||{};o.prevVar=o.prevVar||0;o.cats=o.cats||{};o.cats.d=o.cats.d||[];o.cats.e=o.cats.e||[];return o}
+function norm(o){if(!o||typeof o!=='object')o={};o.rec=o.rec||[];o.tx=o.tx||[];o.pagos=o.pagos||{};o.limite=o.limite||0;o.next=o.next||1;o.v=o.v||0;o.vals=o.vals||{};o.caps=o.caps||{};o.parc=o.parc||[];o.metas=o.metas||[];o.inv=o.inv||[];o.cot=o.cot||{};o.cot.t=o.cot.t||{};o.tema=o.tema||'auto';o.fech=o.fech||{};o.saldoIni=o.saldoIni||0;o.prevVar=o.prevVar||0;o.cats=o.cats||{};o.cats.d=o.cats.d||[];o.cats.e=o.cats.e||[];return o}
 let S=null;
 try{S=JSON.parse($('#state').textContent)}catch(e){}
 S=norm(S);
@@ -490,7 +490,7 @@ function alertas(d,items){
   items.forEach(o=>{const p=o.total?o.spent/o.total:0;
     if(o.spent>o.total)out.push({c:'neg',t:`${o.nome}: estourou ${brl(o.spent-o.total)}`});
     else if(p>=.8)out.push({c:'warn',t:`${o.nome}: ${Math.round(p*100)}% usado (restam ${brl(o.total-o.spent)})`})});
-  try{previsao(4).filter(x=>x.m>view&&x.saldo<0).slice(0,2).forEach(x=>out.push({c:'warn',t:`Previsão: ${mname(x.m)} deve fechar negativo (${brl(x.saldo)})`}))}catch(e){}
+  try{previsao(4).filter(x=>x.m>view&&x.acc<0).slice(0,2).forEach(x=>out.push({c:'warn',t:`Previsão: ${mname(x.m)} deve fechar com saldo negativo (${brl(x.acc)})`}))}catch(e){}
   return out.slice(0,10);
 }
 
@@ -638,16 +638,26 @@ function varMedio(){
   if(vs.length)return vs.reduce((s,v)=>s+v,0)/vs.length;
   return monthData(curM).vr;
 }
+let _cc={k:null,m:{}};
+function carryIn(m){
+  const k=S.v+'|'+(S.saldoIni||0)+'|'+curM;if(_cc.k!==k)_cc={k,m:{}};
+  if(_cc.m[m]!==undefined)return _cc.m[m];
+  const first=allMonths()[0];let r=0;
+  if(first&&m>first){const p=addM(m,-1),f=S.fech[p];r=carryIn(p)+monthData(p).saldoPrev-(f&&f.dest?f.dest.v:0)}
+  else if(first&&m===first)r=S.saldoIni||0;
+  return (_cc.m[m]=Math.round(r*100)/100);
+}
 function previsao(n){
-  const est=varMedio(),out=[];let acc=0;
+  const est=varMedio(),out=[];let acc=carryIn(view);
   for(let i=0;i<n;i++){const m=addM(view,i),d=monthData(m),ex=m>curM?est:0;
     const saidas=d.gasto+d.metaPrev+ex,saldo=d.entPrev-saidas;acc+=saldo;
     out.push({m,ent:d.entPrev,fix:d.fixPrev,card:d.cartPrev,meta:d.metaPrev,vr:d.vr+ex,saidas,saldo,acc})}
   return out;
 }
 const kfmt=v=>Math.abs(v)>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil':String(Math.round(v));
+function saldoIniCard(){const f=allMonths()[0]||curM;return `<div class="card"><h3>Saldo inicial</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Em ${esc(mname(f))} (R$)<input id="sini" inputmode="decimal" placeholder="0,00" value="${S.saldoIni?String(S.saldoIni).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">Quanto você tinha disponível no começo de ${esc(mlabel(f))}. A sobra de cada mês passa para o seguinte, descontando o que você destinar a metas ou aplicações ao fechar o mês.</span></div></div>`}
 function vPrev(){
-  const L=previsao(6),est=varMedio(),neg=L.filter(x=>x.saldo<0);
+  const L=previsao(6),est=varMedio(),neg=L.filter(x=>x.acc<0);
   const mx=Math.max(1,...L.map(x=>Math.abs(x.saldo)));
   const W=360,H=196,base=98,hh=62,gw=58;
   let g=`<line x1="6" x2="354" y1="${base}" y2="${base}" stroke="var(--bd)"/>`;
@@ -655,12 +665,12 @@ function vPrev(){
     g+=`<rect x="${x0}" y="${up?base-h:base}" width="30" height="${h}" rx="5" fill="${up?'var(--pos)':'var(--neg)'}" opacity="${i===0?1:.8}"><title>${esc(mshort(x.m))} · ${brl(x.saldo)}</title></rect>`;
     g+=`<text x="${x0+15}" y="${up?base-h-6:base+h+14}" text-anchor="middle" font-size="10" font-weight="700" fill="var(--tx)">${esc(kfmt(x.saldo))}</text>`;
     g+=`<text x="${x0+15}" y="${H-6}" text-anchor="middle" font-size="11" font-weight="${i===0?700:500}" fill="${i===0?'var(--tx)':'var(--mut)'}">${esc(mshort(x.m))}</text>`});
-  const rows=L.map(x=>`<tr><td><b>${esc(cap(mname(x.m)))}</b><div class="sm mut">fixas ${brl(x.fix)} · cartão ${brl(x.card)} · variáveis ${brl(x.vr)}${x.meta>0?' · reserva '+brl(x.meta):''}</div></td><td class="r">${brl(x.ent)}</td><td class="r ${x.saldo<0?'neg':'pos'}">${brl(x.saldo)}</td></tr>`).join('');
-  const alert=neg.length?`<div class="card"><h3>Atenção <small>${neg.length}</small></h3>${neg.map(x=>`<div class="al neg"><span class="ic">${ic('alert',18)}</span><p>${esc(cap(mname(x.m)))} deve fechar negativo em ${brl(-x.saldo)}.</p></div>`).join('')}</div>`:`<div class="card"><div class="al" style="border:0;padding:0"><p class="pos">Nos próximos 6 meses o saldo previsto fica positivo.</p></div></div>`;
+  const rows=L.map(x=>`<tr><td><b>${esc(cap(mname(x.m)))}</b><div class="sm mut">entradas ${brl(x.ent)} · fixas ${brl(x.fix)} · cartão ${brl(x.card)} · variáveis ${brl(x.vr)}${x.meta>0?' · reserva '+brl(x.meta):''}</div></td><td class="r ${x.saldo<0?'neg':'pos'}">${brl(x.saldo)}</td><td class="r ${x.acc<0?'neg':''}"><b>${brl(x.acc)}</b></td></tr>`).join('');
+  const alert=neg.length?`<div class="card"><h3>Atenção <small>${neg.length}</small></h3>${neg.map(x=>`<div class="al neg"><span class="ic">${ic('alert',18)}</span><p>${esc(cap(mname(x.m)))} deve fechar com saldo negativo de ${brl(-x.acc)}.</p></div>`).join('')}</div>`:`<div class="card"><div class="al" style="border:0;padding:0"><p class="pos">Nos próximos 6 meses o saldo previsto fica positivo.</p></div></div>`;
   return pageHead('Previsão','Saldo previsto dos próximos meses, com contas fixas, parcelas do cartão e reservas.')+alert+
   `<div class="card"><h3>Saldo previsto por mês</h3><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Saldo previsto dos próximos 6 meses">${g}</svg></div>`+
-  `<div class="card"><h3>Mês a mês <small>acumulado ${brl(L[L.length-1].acc)}</small></h3><div class="tbl"><table class="rt"><thead><tr><th>Mês</th><th class="r">Entradas</th><th class="r">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+
-  `<div class="card"><h3>Gastos variáveis estimados</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Por mês (R$)<input id="pvar" inputmode="decimal" placeholder="${esc(String(Math.round(varMedio())))}" value="${S.prevVar?String(S.prevVar).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">${S.prevVar>0?'Valor definido por você.':'Sem valor, o app usa a média dos últimos meses: '+brl(est)+'.'} Entra na previsão dos meses futuros, além dos orçamentos e contas fixas.</span></div></div>`;
+  `<div class="card"><h3>Mês a mês <small>saldo inicial ${brl(carryIn(view))}</small></h3><div class="tbl"><table class="rt"><thead><tr><th>Mês</th><th class="r">No mês</th><th class="r">Acumulado</th></tr></thead><tbody>${rows}</tbody></table></div></div>`+
+  `<div class="card"><h3>Gastos variáveis estimados</h3><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><label style="width:170px">Por mês (R$)<input id="pvar" inputmode="decimal" placeholder="${esc(String(Math.round(varMedio())))}" value="${S.prevVar?String(S.prevVar).replace('.',','):''}"></label><span style="flex:1;min-width:160px" class="mut sm">${S.prevVar>0?'Valor definido por você.':'Sem valor, o app usa a média dos últimos meses: '+brl(est)+'.'} Entra na previsão dos meses futuros, além dos orçamentos e contas fixas.</span></div></div>`+saldoIniCard();
 }
 
 /* importar extrato */
@@ -764,13 +774,15 @@ function fechAviso(d){
   return `<div class="card" style="padding:12px 16px"><div class="al" style="border:0;padding:0"><span class="ic" style="background:var(--warnbg);color:var(--warn)">${ic('cal',18)}</span><p>${view<curM?'Esse mês já terminou.':'O mês está acabando.'} Feche ${esc(mname(view))} e destine a sobra.</p><button class="sec mini" data-a="tab" data-t="fechamento">Fechar</button></div></div>`;
 }
 function vFech(){
-  const f=S.fech[view],I=fechInfo(view),d=I.d,sobra=I.sobra,saidas=d.gasto+d.metaPrev;
+  const f=S.fech[view],I=fechInfo(view),d=I.d,sobra=I.sobra,saidas=d.gasto+d.metaPrev,cin=carryIn(view);
   const opt=S.metas.map(g=>`<option value="m:${g.id}">Meta · ${esc(g.nome)}</option>`).concat(S.inv.filter(i=>['rf','rv','res'].includes(i.tipo)).map(i=>`<option value="i:${i.id}">Aplicação · ${esc(i.nome)}</option>`)).join('');
   const pc=p=>`<button type="button" class="chip" data-a="fset" data-v="${String(Math.round(Math.max(0,sobra)*p)/100).replace('.',',')}">${p}%</button>`;
   const resumo=`<div class="card"><h3>${esc(cap(mlabel(view)))}</h3>
     <div class="kv"><span>Entradas</span><span class="kv-v pos">${brl(d.entPrev)}</span></div>
     <div class="kv"><span>Saídas (contas, cartão, variáveis e reserva)</span><span class="kv-v">${brl(saidas)}</span></div>
     <div class="kv"><span>Sobra do mês</span><span class="kv-v ${sobra<0?'neg':'pos'}">${brl(sobra)}</span></div>
+    <div class="kv"><span>Veio de meses anteriores</span><span class="kv-v ${cin<0?'neg':''}">${brl(cin)}</span></div>
+    <div class="kv"><span>Saldo acumulado</span><span class="kv-v ${sobra+cin<0?'neg':'pos'}">${brl(sobra+cin)}</span></div>
     <p class="hint"><button class="sec mini" data-a="tab" data-t="relatorio">Ver relatório do mês</button></p></div>`;
   const pend=I.pend.length&&!f?`<div class="card"><h3>Pendências <small>${I.pend.length}</small></h3>${I.pend.map(t=>`<div class="al warn"><span class="ic">${ic('clock',18)}</span><p>${esc(t)}</p></div>`).join('')}<p class="hint">Marque como pago em Contas e Cartão antes de fechar, ou feche assim mesmo.</p></div>`:'';
   let acao;
@@ -914,13 +926,14 @@ function vComp(d){
 
 /* ---------- telas ---------- */
 function vHero(d){
-  const out=d.gasto+d.metaPrev,base=Math.max(d.entPrev,out,1);
+  const out=d.gasto+d.metaPrev,base=Math.max(d.entPrev,out,1),cin=carryIn(view),tp=d.saldoPrev+cin,ta=d.saldoAtual+cin;
   const segs=[['Contas fixas',d.fixPrev,'var(--h-fix)'],['Cartão',d.cartPrev,'var(--h-card)'],['Variáveis',d.vr,'var(--h-var)'],['Reserva',d.metaPrev,'var(--h-res)']].filter(s=>s[1]>0);
   const comp=d.fixPrev+d.cartPrev,paid=d.fixReal+d.cartReal,pp=comp?Math.round(paid/comp*100):0;
   return `<section class="hero">
     <div class="hl">${d.metaPrev>0?'Sobra prevista após reservar':'Saldo previsto'} · ${esc(mname(view))}</div>
-    <div class="hv ${d.saldoPrev<0?'neg':''}">${brl(d.saldoPrev)}</div>
-    <div class="hs">Hoje, com o que já entrou e saiu: <b class="${d.saldoAtual<0?'neg':''}">${brl(d.saldoAtual)}</b></div>
+    <div class="hv ${tp<0?'neg':''}">${brl(tp)}</div>
+    <div class="hs">Hoje, com o que já entrou e saiu: <b class="${ta<0?'neg':''}">${brl(ta)}</b></div>
+    ${Math.abs(cin)>0.004?`<div class="hs">Inclui <b>${sgn(cin)}</b> ${cin>0?'que sobrou':'que faltou'} dos meses anteriores</div>`:''}
     <div class="hbar" title="A barra inteira representa suas entradas do mês">${segs.map(s=>`<i style="width:${s[1]/base*100}%;background:${s[2]}"></i>`).join('')}</div>
     <div class="hleg">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b>${brl(s[1])}</b></span>`).join('')}</div>
     <div class="hfoot"><div><span>Entradas</span><b>${brl(d.entPrev)}</b></div><div><span>Saídas</span><b>${brl(out)}</b></div><div><span>Contas pagas</span><b>${pp}%</b></div></div>
@@ -1341,6 +1354,7 @@ document.addEventListener('change',e=>{
     commit();toast('Cotação atualizada.');return}
   if(el.id==='fotoin'){const f=el.files&&el.files[0];if(!f||!AS)return;pend.busy=true;toast('Enviando foto…');
     (async()=>{try{let b;try{b=await shrink(f)}catch(x){b=f}const r=await AS.upload(b);pend.foto=r.id;toast('Foto anexada.')}catch(x){toast('Não consegui enviar a foto.')}pend.busy=false;paintAnx()})();return}
+  if(el.id==='sini'){const v=parseValor(el.value);S.saldoIni=isFinite(v)?v:0;commit();return}
   if(el.id==='pvar'){const v=parseValor(el.value);S.prevVar=isFinite(v)&&v>0?v:0;commit();return}
   if(el.id==='impfile'){const f=el.files&&el.files[0];if(!f)return;const rd=new FileReader();
     rd.onload=()=>{impTxt=decodeBuf(rd.result);imp=buildImp(parseExtrato(impTxt).slice(0,600));render();toast(imp.length?imp.length+' lançamentos encontrados.':'Não encontrei lançamentos nesse arquivo.')};
