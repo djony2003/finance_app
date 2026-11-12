@@ -283,7 +283,7 @@ input.big{font:700 34px/1.1 var(--f-num)!important;text-align:center;background:
 .it .n.w span{white-space:normal}
 .it .a small{display:block;font-size:12px;font-weight:600;text-align:right}
 .fx,.ox{display:none!important}
-form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=acao] .k-acao,form[data-t=usd] .k-usd,form[data-o=in] .o-in,form[data-o=out] .o-out,form[data-o=upd] .o-upd{display:flex!important}
+form[data-t=rf] .k-rf,form[data-t=rv] .k-rv,form[data-t=res] .k-res,form[data-t=acao] .k-acao,form[data-t=usd] .k-usd,form[data-t=ext] .k-ext,form[data-o=in] .o-in,form[data-o=out] .o-out,form[data-o=upd] .o-upd{display:flex!important}
 .seg5{display:flex;flex-wrap:wrap;gap:6px}
 .seg5 label{display:block;cursor:pointer}
 .seg5 input{position:absolute;opacity:0;pointer-events:none}
@@ -527,7 +527,7 @@ function alertas(d,items){
 
 
 /* ---------- investimentos ---------- */
-const INVT={rf:['Renda fixa','#12a383'],rv:['Renda variável','#9b51e0'],acao:['Ações e FIIs','#3b5bdb'],res:['Reserva em conta','#1c9fc4'],usd:['Conta em dólar','#c99a10']};
+const INVT={rf:['Renda fixa','#12a383'],rv:['Renda variável','#9b51e0'],acao:['Ações e FIIs','#3b5bdb'],res:['Reserva em conta','#1c9fc4'],usd:['Conta em dólar','#c99a10'],ext:['Ações no exterior (US$)','#d6336c']};
 const usdF=v=>HIDE?'US$ '+MASK:'US$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const qtdF=v=>(v||0).toLocaleString('pt-BR',{maximumFractionDigits:8});
 const brlN=v=>HIDE?'R$ '+MASK:(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:4});
@@ -539,18 +539,20 @@ const tick=s=>String(s||'').trim().toUpperCase();
 function numP(s){s=String(s==null?'':s).replace(/R\$|US\$|\$|\s/gi,'');if(!s)return NaN;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');else if((s.match(/\./g)||[]).length>1)s=s.replace(/\./g,'');const n=parseFloat(s);return isFinite(n)?Math.round(n*1e6)/1e6:NaN}
 function numQ(s){s=String(s==null?'':s).replace(/\s/g,'');if(!s)return NaN;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');else if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');const n=parseFloat(s);return isFinite(n)?Math.round(n*1e8)/1e8:NaN}
 function cotAcao(i){const c=S.cot.t[tick(i.nome)];return c&&c.v>0?c:null}
-function invCusto(i){return i.tipo==='acao'?i.qtd*i.pm:i.tipo==='usd'?i.usd*i.dm:i.aplicado}
-function invVal(i){if(i.tipo==='acao'){const c=cotAcao(i);return i.qtd*(c?c.v:i.pm)}if(i.tipo==='usd')return i.usd*(S.cot.usd>0?S.cot.usd:i.dm);return i.atual!=null?i.atual:i.aplicado}
+function cotExt(i){const c=S.cot.t['US:'+tick(i.nome)];return c&&c.v>0?c:null}
+function invCusto(i){return i.tipo==='ext'?i.qtd*i.pm*i.dm:i.tipo==='acao'?i.qtd*i.pm:i.tipo==='usd'?i.usd*i.dm:i.aplicado}
+function invVal(i){if(i.tipo==='ext'){const c=cotExt(i);return i.qtd*(c?c.v:i.pm)*(S.cot.usd>0?S.cot.usd:i.dm)}if(i.tipo==='acao'){const c=cotAcao(i);return i.qtd*(c?c.v:i.pm)}if(i.tipo==='usd')return i.usd*(S.cot.usd>0?S.cot.usd:i.dm);return i.atual!=null?i.atual:i.aplicado}
 function invSum(list){let c=0,v=0,rz=0;list.forEach(i=>{c+=invCusto(i);v+=invVal(i);rz+=i.realizado||0});return {c,v,r:v-c,p:c?(v-c)/c:0,rz}}
 const staleTag=d=>!d?'<i class="tag warn">sem cotação</i>':d===todayStr?'<i class="tag">hoje</i>':`<i class="tag warn">de ${dmy(d)}</i>`;
 function invRow(i){
   const c=invCusto(i),v=invVal(i),r=v-c,p=c?r/c:0,inst=i.inst?esc(i.inst)+' · ':'';let sub;
   if(i.tipo==='acao'){const q=cotAcao(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${brlN(i.pm)} · ${q?'fech. '+brlN(q.v):'sem cotação'}`}
+  else if(i.tipo==='ext'){const q=cotExt(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${usdF(i.pm)} · ${q?'hoje '+usdF(q.v)+' ('+dmy(q.d)+')':'sem cotação'}`}
   else if(i.tipo==='usd')sub=`${inst}${usdF(i.usd)} · dólar médio ${brlN(i.dm)} · hoje ${S.cot.usd?brlN(S.cot.usd):'—'}`;
   else if(i.tipo==='res')sub=`${inst}saldo em conta${i.atualData?' · de '+dmy(i.atualData):''} · sem rendimento calculado`;
   else sub=`${inst}aplicado ${brl(i.aplicado)}${i.atualData?' · saldo de '+dmy(i.atualData):''}${i.venc?' · vence '+i.venc.split('-').reverse().join('/'):''}`;
-  const lbl=i.tipo==='acao'?tick(i.nome).slice(0,2):i.tipo==='usd'?'$':(i.nome||'?').charAt(0).toUpperCase();
-  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${sgn(r)} · ${pctF(p)}</small>`}</div></div>`;
+  const lbl=(i.tipo==='acao'||i.tipo==='ext')?tick(i.nome).slice(0,2):i.tipo==='usd'?'$':(i.nome||'?').charAt(0).toUpperCase();
+  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'||i.tipo==='ext'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${sgn(r)} · ${pctF(p)}</small>`}</div></div>`;
 }
 function vInv(){
   const L=S.inv,tot=invSum(L);
@@ -569,10 +571,11 @@ function vInv(){
     <div class="hbar">${tipos.map(t=>`<i style="width:${sums[t].v/base*100}%;background:${INVT[t][1]}"></i>`).join('')}</div>
     <div class="hleg">${tipos.map(t=>`<span><i style="background:${INVT[t][1]}"></i>${INVT[t][0]} <b>${Math.round(sums[t].v/base*100)}%</b></span>`).join('')}</div>
     ${Math.abs(tot.rz)>0.004?`<div class="hfoot" style="grid-template-columns:1fr"><div><span>Lucro já realizado em vendas e resgates</span><b>${sgn(tot.rz)}</b></div></div>`:''}</section>`;
-  const tks=[...new Set(L.filter(i=>i.tipo==='acao').map(i=>tick(i.nome)))],hasUsd=L.some(i=>i.tipo==='usd');
-  const cot=(hasUsd||tks.length)?`<div class="card"><h3>Cotações <button class="sec mini" data-a="qrefresh">Atualizar agora</button></h3><p class="hint" style="margin:-4px 0 14px">O dólar é buscado sozinho ao abrir o app. O fechamento das ações você informa à mão; o resultado é recalculado na hora.</p><div class="capgrid">
+  const tks=[...new Set(L.filter(i=>i.tipo==='acao').map(i=>tick(i.nome)))],hasUsd=L.some(i=>i.tipo==='usd'||i.tipo==='ext'),exs=[...new Set(L.filter(i=>i.tipo==='ext').map(i=>tick(i.nome)))];
+  const cot=(hasUsd||tks.length||exs.length)?`<div class="card"><h3>Cotações <button class="sec mini" data-a="qrefresh">Atualizar agora</button></h3><p class="hint" style="margin:-4px 0 14px">O dólar é buscado sozinho ao abrir o app. O fechamento das ações você informa à mão; o resultado é recalculado na hora.</p><div class="capgrid">
     ${hasUsd?`<label><span>Dólar (R$) ${staleTag(S.cot.usdData)}</span><input data-cot="USD" inputmode="decimal" value="${fmtN(S.cot.usd)}" placeholder="ex.: 5,52"></label>`:''}
-    ${tks.map(t=>{const c=S.cot.t[t];return `<label><span>${esc(t)} ${staleTag(c&&c.d)}</span><input data-cot="${esc(t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="fechamento (R$)"></label>`}).join('')}</div></div>`:'';
+    ${tks.map(t=>{const c=S.cot.t[t];return `<label><span>${esc(t)} ${staleTag(c&&c.d)}</span><input data-cot="${esc(t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="fechamento (R$)"></label>`}).join('')}
+    ${exs.map(t=>{const c=S.cot.t['US:'+t];return `<label><span>${esc(t)} (US$) ${staleTag(c&&c.d)}</span><input data-cot="${esc('US:'+t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="cotação (US$)"></label>`}).join('')}</div>${exs.length?'<p class="hint" style="margin:10px 0 0">Cotação automática de ações dos EUA ainda não está disponível: o botão atualiza o dólar e você informa o preço em US$ de cada ativo.</p>':''}</div>`:'';
   const cards=tipos.map(t=>{const s_=sums[t];return `<div class="card"><h3>${INVT[t][0]} <small>${brl(s_.v)} · <span class="${s_.r<-0.004?'neg':'pos'}">${pctF(s_.p)}</span></small></h3>${L.filter(i=>i.tipo===t).map(invRow).join('')}</div>`}).join('');
   return pageHead('Investimentos','Toque numa aplicação para comprar, vender, aportar, resgatar ou atualizar o saldo.',add)+hero+cot+cards;
 }
@@ -580,7 +583,7 @@ function csvInv(){
   const head=['Tipo','Aplicação','Instituição','Quantidade / Saldo US$','Preço médio / Dólar médio','Cotação','Valor aplicado (R$)','Valor atual (R$)','Resultado (R$)','Resultado (%)','Lucro realizado (R$)'];
   const f=n=>typeof n==='number'?n.toFixed(2).replace('.',','):n;
   const rows=S.inv.map(i=>{const c=invCusto(i),v=invVal(i),q=cotAcao(i);
-    return [INVT[i.tipo][0],i.tipo==='acao'?tick(i.nome):i.nome,i.inst||'',i.tipo==='acao'?String(i.qtd).replace('.',','):i.tipo==='usd'?f(i.usd):'',i.tipo==='acao'?f(i.pm):i.tipo==='usd'?String(i.dm).replace('.',','):'',i.tipo==='acao'?(q?String(q.v).replace('.',','):''):i.tipo==='usd'?String(S.cot.usd||'').replace('.',','):'',f(c),f(v),f(v-c),c?((v-c)/c*100).toFixed(2).replace('.',','):'',f(i.realizado||0)]});
+    return [INVT[i.tipo][0],(i.tipo==='acao'||i.tipo==='ext')?tick(i.nome):i.nome,i.inst||'',(i.tipo==='acao'||i.tipo==='ext')?String(i.qtd).replace('.',','):i.tipo==='usd'?f(i.usd):'',(i.tipo==='acao'||i.tipo==='ext')?f(i.pm):i.tipo==='usd'?String(i.dm).replace('.',','):'',i.tipo==='ext'?(cotExt(i)?String(cotExt(i).v).replace('.',','):''):i.tipo==='acao'?(q?String(q.v).replace('.',','):''):i.tipo==='usd'?String(S.cot.usd||'').replace('.',','):'',f(c),f(v),f(v-c),c?((v-c)/c*100).toFixed(2).replace('.',','):'',f(i.realizado||0)]});
   return '﻿'+[head].concat(rows).map(r=>r.map(x=>{x=String(x);return /[;"\n]/.test(x)?'"'+x.replace(/"/g,'""')+'"':x}).join(';')).join('\r\n');
 }
 
@@ -891,7 +894,7 @@ async function refreshQuotes(manual){
   qbusy=false;
   if(ch)persistQuiet();
   if(modal||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||''))patchChip();else render();
-  if(err)toast(qErr(err));else if(manual)toast('Cotações atualizadas.');
+  if(err)toast(qErr(err));else if(manual)toast(S.inv.some(i=>i.tipo==='ext')?'Dólar e cotações atualizados. Preços dos ativos dos EUA: informe à mão.':'Cotações atualizadas.');
 }
 
 /* ---------- exportação ---------- */
@@ -1290,25 +1293,32 @@ function renderModal(){
       <label class="fx k-acao">Quantidade<input name="qtd" inputmode="decimal" placeholder="100"></label>
       <label class="fx k-acao">Preço médio (R$)<input name="pm" inputmode="decimal" placeholder="0,00"></label>
       <label class="fx k-acao full">Fechamento de hoje (R$)<input name="cotA" inputmode="decimal" placeholder="opcional"></label>
+      <label class="fx k-ext">Quantidade<input name="xq" inputmode="decimal" placeholder="16,91"></label>
+      <label class="fx k-ext">Preço pago (US$)<input name="xp" inputmode="decimal" placeholder="296,09"></label>
+      <label class="fx k-ext">Taxa de corretagem (US$)<input name="fee" inputmode="decimal" placeholder="7,50"></label>
+      <label class="fx k-ext">Dólar na compra (R$)<input name="xdm" inputmode="decimal" value="${fmtN(S.cot.usd)}" placeholder="ex.: 5,30"></label>
+      <label class="fx k-ext full">Pago com<select name="xpay"><option value="">Não descontar de nenhuma conta</option>${S.inv.filter(x=>x.tipo==='usd').map(x=>`<option value="${x.id}">${esc(x.nome)} (conta em dólar · ${usdF(x.usd)})</option>`).join('')}</select></label>
+      <label class="fx k-ext full">Cotação de hoje (US$)<input name="cotX" inputmode="decimal" placeholder="opcional"></label>
+      <p class="hint full fx k-ext" style="margin:0">A taxa entra no preço médio. Ações e ETFs dos EUA (ex.: GOOGL, SGOV).</p>
       <label class="fx k-usd">Saldo (US$)<input name="usd" inputmode="decimal" placeholder="0,00"></label>
       <label class="fx k-usd">Dólar médio pago (R$)<input name="dm" inputmode="decimal" placeholder="ex.: 5,30"></label>
       <label class="fx k-usd full">Dólar de hoje (R$)<input name="cotU" inputmode="decimal" value="${fmtN(S.cot.usd)}" placeholder="ex.: 5,52"></label>
       <p class="hint full fx k-acao" style="margin:0">O preço médio é recalculado sozinho a cada nova compra.</p>
       <div class="btns full"><button class="pri" type="submit">Adicionar</button></div></form>`)}
   if(modal.type==='invOp'){const i=S.inv.find(x=>x.id===modal.id);if(!i)return '';
-    const c=invCusto(i),v=invVal(i),r=v-c,mv=i.tipo==='acao'||i.tipo==='usd';
-    const ops=i.tipo==='acao'?[['in','Comprar'],['out','Vender']]:i.tipo==='usd'?[['in','Comprar US$'],['out','Vender / retirar']]:[['upd','Reajustar saldo'],['in','Aportar'],['out','Resgatar']];
-    const o0=ops[0][0],pDef=i.tipo==='acao'?(cotAcao(i)?cotAcao(i).v:''):(S.cot.usd||'');
-    const info=i.tipo==='acao'?`${qtdF(i.qtd)} cotas · preço médio <b>${brlN(i.pm)}</b>`:i.tipo==='usd'?`${usdF(i.usd)} · dólar médio <b>${brlN(i.dm)}</b>`:i.tipo==='res'?`Saldo <b>${brl(i.atual)}</b>`:`Aplicado <b>${brl(i.aplicado)}</b> · saldo <b>${brl(i.atual)}</b>`;
-    const fields=mv?`<label>${i.tipo==='acao'?'Quantidade':'Valor (US$)'}<input name="q" inputmode="decimal" placeholder="0" data-focus></label><label>${i.tipo==='acao'?'Preço (R$)':'Cotação (R$)'}<input name="p" inputmode="decimal" value="${fmtN(pDef)}" placeholder="0,00"></label>`
+    const c=invCusto(i),v=invVal(i),r=v-c,mv=i.tipo==='acao'||i.tipo==='usd'||i.tipo==='ext';
+    const ops=(i.tipo==='acao'||i.tipo==='ext')?[['in','Comprar'],['out','Vender']]:i.tipo==='usd'?[['in','Comprar US$'],['out','Vender / retirar']]:[['upd','Reajustar saldo'],['in','Aportar'],['out','Resgatar']];
+    const o0=ops[0][0],pDef=i.tipo==='ext'?(cotExt(i)?cotExt(i).v:''):i.tipo==='acao'?(cotAcao(i)?cotAcao(i).v:''):(S.cot.usd||'');
+    const info=i.tipo==='ext'?`${qtdF(i.qtd)} cotas · preço médio <b>${usdF(i.pm)}</b> · dólar médio <b>${brlN(i.dm)}</b>${cotExt(i)?' · hoje <b>'+usdF(cotExt(i).v)+'</b>':''}`:i.tipo==='acao'?`${qtdF(i.qtd)} cotas · preço médio <b>${brlN(i.pm)}</b>`:i.tipo==='usd'?`${usdF(i.usd)} · dólar médio <b>${brlN(i.dm)}</b>`:i.tipo==='res'?`Saldo <b>${brl(i.atual)}</b>`:`Aplicado <b>${brl(i.aplicado)}</b> · saldo <b>${brl(i.atual)}</b>`;
+    const fields=mv?`<label>${i.tipo==='usd'?'Valor (US$)':'Quantidade'}<input name="q" inputmode="decimal" placeholder="0" data-focus></label><label>${i.tipo==='ext'?'Preço (US$)':i.tipo==='acao'?'Preço (R$)':'Cotação (R$)'}<input name="p" inputmode="decimal" value="${fmtN(pDef)}" placeholder="0,00"></label>${i.tipo==='ext'?`<label class="ox o-in">Taxa (US$)<input name="fee" inputmode="decimal" placeholder="0,00"></label><label class="ox o-in">Dólar na compra (R$)<input name="dm" inputmode="decimal" value="${fmtN(S.cot.usd||i.dm)}"></label><label class="full ox o-in">Pago com<select name="xpay"><option value="">Não descontar de nenhuma conta</option>${S.inv.filter(x=>x.tipo==='usd').map(x=>`<option value="${x.id}">${esc(x.nome)} (conta em dólar · ${usdF(x.usd)})</option>`).join('')}</select></label><label class="full ox o-out">Dólar na venda (R$)<input name="dv" inputmode="decimal" value="${fmtN(S.cot.usd||i.dm)}"></label>`:''}`
       :`<label class="full ox o-upd">Saldo atual (R$)<input name="s" inputmode="decimal" value="${fmtN(i.atual)}" data-focus></label><label class="full ox o-in o-out">Valor (R$)<input name="v" inputmode="decimal" placeholder="0,00"></label>`;
     const recSel=i.tipo==='res'?'':`<label class="full ox o-out">O dinheiro da venda entra em<select name="rec">${(()=>{const r1=S.inv.find(x=>x.tipo==='res'&&x.id!==i.id);return '<option value="">Conta corrente (principal)</option>'+S.contas.filter(c=>c.tipo==='cc').map(c=>`<option value="c:${c.id}">${esc(c.nome)}</option>`).join('')+S.inv.filter(x=>x.tipo==='res'&&x.id!==i.id).map(x=>`<option value="i:${x.id}"${r1&&r1.id===x.id?' selected':''}>${esc(x.nome)} (investimento)</option>`).join('')})()}</select></label><p class="hint full ox o-out" style="margin:0">Só o lucro (venda − custo) conta como entrada no mês; o prejuízo conta como gasto. O valor total vai para a conta escolhida.</p>`;
-    return bg(i.tipo==='acao'?tick(i.nome):i.nome,`<div class="sumbox">${INVT[i.tipo][0]}${i.inst?' · '+esc(i.inst):''}<br>${info}<br>Hoje <b>${brl(v)}</b>${i.tipo==='res'?'':` · resultado <b class="${r<-0.004?'neg':'pos'}">${sgn(r)} (${pctF(c?r/c:0)})</b>`}${Math.abs(i.realizado||0)>0.004?`<br>Lucro realizado <b>${sgn(i.realizado)}</b>`:''}</div>
+    return bg((i.tipo==='acao'||i.tipo==='ext')?tick(i.nome):i.nome,`<div class="sumbox">${INVT[i.tipo][0]}${i.inst?' · '+esc(i.inst):''}<br>${info}<br>Hoje <b>${brl(v)}</b>${i.tipo==='res'?'':` · resultado <b class="${r<-0.004?'neg':'pos'}">${sgn(r)} (${pctF(c?r/c:0)})</b>`}${Math.abs(i.realizado||0)>0.004?`<br>Lucro realizado <b>${sgn(i.realizado)}</b>`:''}</div>
       <form class="f" data-f="invOp" data-o="${o0}"><div class="seg5 full">${ops.map(([k,l])=>`<label><input type="radio" name="oper" value="${k}"${k===o0?' checked':''}><span>${l}</span></label>`).join('')}</div>
       ${fields}${recSel}<div class="btns full"><button class="pri" type="submit">Confirmar</button></div></form>
       <div class="links" style="margin-top:14px"><button class="sec mini" data-a="open" data-m="editInv" data-id="${i.id}">${ic('edit',15)} Editar dados</button><button class="sec mini danger" data-a="open" data-m="delInv" data-id="${i.id}">${ic('trash',15)} Excluir</button></div>`)}
   if(modal.type==='editInv'){const i=S.inv.find(x=>x.id===modal.id);if(!i)return '';
-    const extra=i.tipo==='acao'?`<label>Quantidade<input name="qtd" inputmode="decimal" value="${fmtN(i.qtd)}"></label><label>Preço médio (R$)<input name="pm" inputmode="decimal" value="${fmtN(i.pm)}"></label>`
+    const extra=i.tipo==='ext'?`<label>Quantidade<input name="qtd" inputmode="decimal" value="${fmtN(i.qtd)}"></label><label>Preço médio (US$)<input name="pm" inputmode="decimal" value="${fmtN(i.pm)}"></label><label class="full">Dólar médio (R$)<input name="dm" inputmode="decimal" value="${fmtN(i.dm)}"></label>`:i.tipo==='acao'?`<label>Quantidade<input name="qtd" inputmode="decimal" value="${fmtN(i.qtd)}"></label><label>Preço médio (R$)<input name="pm" inputmode="decimal" value="${fmtN(i.pm)}"></label>`
       :i.tipo==='usd'?`<label>Saldo (US$)<input name="usd" inputmode="decimal" value="${fmtN(i.usd)}"></label><label>Dólar médio (R$)<input name="dm" inputmode="decimal" value="${fmtN(i.dm)}"></label>`
       :`${i.tipo==='res'?'':`<label>Valor aplicado (R$)<input name="aplicado" inputmode="decimal" value="${fmtN(i.aplicado)}"></label>`}<label${i.tipo==='res'?' class="full"':''}>Saldo atual (R$)<input name="atual" inputmode="decimal" value="${fmtN(i.atual)}"></label>${i.tipo==='rf'?`<label class="full">Vencimento<input name="venc" type="date" value="${i.venc||''}"></label>`:''}`;
     return bg('Editar aplicação',`<form class="f" data-f="editInv"><label class="full">Nome ou código<input name="nome" value="${esc(i.nome)}"></label><label class="full">Instituição<input name="inst" value="${esc(i.inst||'')}"></label>${extra}<p class="hint full" style="margin:0">Use para corrigir dados. Compras e vendas novas vão em “Comprar” e “Vender”.</p><div class="btns full"><button class="pri" type="submit">Salvar</button></div></form>`)}
@@ -1572,12 +1582,19 @@ document.addEventListener('submit',e=>{
       if(!nome)return toast('Informe o nome ou código da aplicação.');
       const it={id:newId(),tipo:t,nome:t==='acao'?tick(nome):nome,inst,criado:todayStr,realizado:0};
       if(t==='acao'){const q=numQ(fd.qtd),pm=numP(fd.pm);if(!(q>0)||!(pm>0))return toast('Informe a quantidade e o preço médio.');Object.assign(it,{qtd:q,pm});const c=numP(fd.cotA);if(c>0)S.cot.t[it.nome]={v:c,d:todayStr}}
+      else if(t==='ext'){const q=numQ(fd.xq),p=numP(fd.xp),fee=numP(fd.fee)||0,dm=numP(fd.xdm);if(!(q>0)||!(p>0))return toast('Informe a quantidade e o preço em US$.');if(!(dm>0))return toast('Informe o dólar da compra (R$).');
+        it.nome=tick(nome);Object.assign(it,{qtd:q,pm:Math.round((p+fee/q)*1e6)/1e6,dm});const c=numP(fd.cotX);if(c>0)S.cot.t['US:'+it.nome]={v:c,d:todayStr};const ac=S.inv.find(x=>x.tipo==='usd'&&String(x.id)===fd.xpay);if(ac){ac.usd=Math.max(0,Math.round((ac.usd-(q*p+fee))*100)/100)}}
       else if(t==='usd'){const u=numP(fd.usd),dm=numP(fd.dm);if(!(u>0)||!(dm>0))return toast('Informe o saldo em US$ e o dólar médio pago.');Object.assign(it,{usd:u,dm});const c=numP(fd.cotU);if(c>0&&c!==S.cot.usd){S.cot.usd=c;S.cot.usdData=todayStr}}
       else if(t==='res'){const at=parseValor(fd.atual||'');if(!(at>=0))return toast('Informe o saldo.');Object.assign(it,{aplicado:at,atual:at,atualData:todayStr,venc:null})}
       else{const a=need(fd.aplicado);if(a==null)return toast('Informe o valor aplicado.');const at=parseValor(fd.atual||'');Object.assign(it,{aplicado:a,atual:isFinite(at)&&at>0?at:a,atualData:todayStr,venc:t==='rf'&&fd.venc?fd.venc:null})}
       S.inv.push(it);modal=null;tab='inv';persistView();commit();toast('Aplicação adicionada.');break}
     case 'invOp':{const i=S.inv.find(x=>x.id===modal.id);if(!i)break;const o=f.dataset.o;
-      if(i.tipo==='acao'||i.tipo==='usd'){const k=i.tipo==='acao'?'qtd':'usd',mk=i.tipo==='acao'?'pm':'dm';
+      if(i.tipo==='ext'){const q=numQ(fd.q),pr=numP(fd.p);
+        if(!(q>0)||!(pr>0))return toast('Informe a quantidade e o preço em US$.');
+        if(o==='in'){const fee=numP(fd.fee)||0,dm=numP(fd.dm);if(!(dm>0))return toast('Informe o dólar da compra.');const cu=q*pr+fee,c0=i.qtd*i.pm;
+          i.dm=Math.round((c0*i.dm+cu*dm)/(c0+cu)*1e6)/1e6;i.pm=Math.round((c0+cu)/(i.qtd+q)*1e6)/1e6;i.qtd=+(i.qtd+q).toFixed(8);S.cot.t['US:'+tick(i.nome)]={v:pr,d:todayStr};const ac=S.inv.find(x=>x.tipo==='usd'&&String(x.id)===fd.xpay);if(ac)ac.usd=Math.max(0,Math.round((ac.usd-cu)*100)/100);modal=null;commit();toast('Compra registrada. Novo médio: '+usdF(i.pm)+'.')}
+        else{if(q>i.qtd+1e-9)return toast('Quantidade maior que a da carteira.');const dv=numP(fd.dv);if(!(dv>0))return toast('Informe o dólar da venda.');const g=q*(pr*dv-i.pm*i.dm);vendaTx('Venda '+tick(i.nome),q*pr*dv,q*i.pm*i.dm,fd.rec);i.realizado=(i.realizado||0)+g;i.qtd=+(i.qtd-q).toFixed(8);S.cot.t['US:'+tick(i.nome)]={v:pr,d:todayStr};modal=null;commit();toast('Venda registrada. Resultado '+sgn(g)+'.')}
+      }else if(i.tipo==='acao'||i.tipo==='usd'){const k=i.tipo==='acao'?'qtd':'usd',mk=i.tipo==='acao'?'pm':'dm';
         const q=i.tipo==='acao'?numQ(fd.q):numP(fd.q),pr=numP(fd.p);
         if(!(q>0)||!(pr>0))return toast(i.tipo==='acao'?'Informe a quantidade e o preço.':'Informe o valor em US$ e a cotação.');
         if(o==='in'){i[mk]=Math.round((i[k]*i[mk]+q*pr)/(i[k]+q)*1e6)/1e6;i[k]=+(i[k]+q).toFixed(8);modal=null;commit();toast('Compra registrada. Novo médio: '+brlN(i[mk])+'.')}
@@ -1591,6 +1608,7 @@ document.addEventListener('submit',e=>{
     case 'editInv':{const i=S.inv.find(x=>x.id===modal.id);if(!i)break;const nome=(fd.nome||'').trim();if(!nome)return toast('Informe o nome.');
       const oldT=tick(i.nome);i.nome=i.tipo==='acao'?tick(nome):nome;i.inst=(fd.inst||'').trim();
       if(i.tipo==='acao'){const q=numQ(fd.qtd),pm=numP(fd.pm);if(!(q>=0)||!(pm>0))return toast('Confira quantidade e preço médio.');i.qtd=q;i.pm=pm;if(oldT!==i.nome&&S.cot.t[oldT]&&!S.inv.some(x=>x!==i&&x.tipo==='acao'&&tick(x.nome)===oldT)){S.cot.t[i.nome]=S.cot.t[i.nome]||S.cot.t[oldT];delete S.cot.t[oldT]}}
+      else if(i.tipo==='ext'){const q=numQ(fd.qtd),pm=numP(fd.pm),dm=numP(fd.dm);if(!(q>=0)||!(pm>0)||!(dm>0))return toast('Confira quantidade, preço e dólar médio.');i.nome=tick(nome);i.qtd=q;i.pm=pm;i.dm=dm;if(oldT!==i.nome&&S.cot.t['US:'+oldT]){S.cot.t['US:'+i.nome]=S.cot.t['US:'+i.nome]||S.cot.t['US:'+oldT];delete S.cot.t['US:'+oldT]}}
       else if(i.tipo==='usd'){const u=numP(fd.usd),dm=numP(fd.dm);if(!(u>=0)||!(dm>0))return toast('Confira saldo e dólar médio.');i.usd=u;i.dm=dm}
       else if(i.tipo==='res'){const at=parseValor(fd.atual||'');if(!(at>=0))return toast('Confira o saldo.');i.aplicado=at;i.atual=at;i.atualData=todayStr}
       else{const a=parseValor(fd.aplicado||''),at=parseValor(fd.atual||'');if(!(a>=0)||!(at>=0))return toast('Confira os valores.');i.aplicado=a;i.atual=at;if(i.tipo==='rf')i.venc=fd.venc||null}
