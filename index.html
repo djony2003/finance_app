@@ -575,7 +575,7 @@ function vInv(){
   const cot=(hasUsd||tks.length||exs.length)?`<div class="card"><h3>Cotações <button class="sec mini" data-a="qrefresh">Atualizar agora</button></h3><p class="hint" style="margin:-4px 0 14px">O dólar é buscado sozinho ao abrir o app. O fechamento das ações você informa à mão; o resultado é recalculado na hora.</p><div class="capgrid">
     ${hasUsd?`<label><span>Dólar (R$) ${staleTag(S.cot.usdData)}</span><input data-cot="USD" inputmode="decimal" value="${fmtN(S.cot.usd)}" placeholder="ex.: 5,52"></label>`:''}
     ${tks.map(t=>{const c=S.cot.t[t];return `<label><span>${esc(t)} ${staleTag(c&&c.d)}</span><input data-cot="${esc(t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="fechamento (R$)"></label>`}).join('')}
-    ${exs.map(t=>{const c=S.cot.t['US:'+t];return `<label><span>${esc(t)} (US$) ${staleTag(c&&c.d)}</span><input data-cot="${esc('US:'+t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="cotação (US$)"></label>`}).join('')}</div>${exs.length?'<p class="hint" style="margin:10px 0 0">Cotação automática de ações dos EUA ainda não está disponível: o botão atualiza o dólar e você informa o preço em US$ de cada ativo.</p>':''}</div>`:'';
+    ${exs.map(t=>{const c=S.cot.t['US:'+t];return `<label><span>${esc(t)} (US$) ${staleTag(c&&c.d)}</span><input data-cot="${esc('US:'+t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="cotação (US$)"></label>`}).join('')}</div>${exs.length?`<label style="display:block;margin-top:12px"><span>Chave da Finnhub (fica só neste aparelho)</span><input data-fhkey="1" type="password" autocomplete="off" value="${esc(fhKey())}" placeholder="cole a chave para buscar ações dos EUA"></label><p class="hint" style="margin:8px 0 0">Com a chave, o botão busca o preço dos ativos dos EUA. Se falhar, digite o preço à mão.</p>`:''}</div>`:'';
   const cards=tipos.map(t=>{const s_=sums[t];return `<div class="card"><h3>${INVT[t][0]} <small>${brl(s_.v)} · <span class="${s_.r<-0.004?'neg':'pos'}">${pctF(s_.p)}</span></small></h3>${L.filter(i=>i.tipo===t).map(invRow).join('')}</div>`}).join('');
   return pageHead('Investimentos','Toque numa aplicação para comprar, vender, aportar, resgatar ou atualizar o saldo.',add)+hero+cot+cards;
 }
@@ -879,7 +879,34 @@ const usdN=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionD
 const usdChip=()=>{const u=S.cot.usd;return `<button class="usdchip" data-a="qrefresh" title="Atualizar cotações"><b>Dólar</b> ${u?'R$ '+usdN(u):'—'} <small>${qbusy?'atualizando…':u?(S.cot.usdData===todayStr?'hoje':'de '+dmy(S.cot.usdData)):'toque'}</small></button>`};
 function patchChip(){const el=$('.usdchip');if(el)el.outerHTML=usdChip()}
 function persistQuiet(){S.v=Date.now();try{localStorage.setItem('cf_backup',JSON.stringify(S))}catch(e){}clearTimeout(timer);setStatus('Salvando…');timer=setTimeout(doPublish,1200)}
+let xbusy=false;
+function fhKey(){try{return (localStorage.getItem('cf_fhkey')||'').trim()}catch(e){return ''}}
+async function refreshExt(manual){
+  const tks=[...new Set(S.inv.filter(i=>i.tipo==='ext').map(i=>tick(i.nome)))];
+  if(!tks.length||xbusy)return;
+  const k=fhKey();
+  if(!k){if(manual)toast('Informe a chave da Finnhub em Cotações para buscar ações dos EUA.');return}
+  xbusy=true;let ch=false,fail=0,bad=0;
+  await Promise.all(tks.map(async tk=>{
+    try{
+      const r=await fetch('https://finnhub.io/api/v1/quote?symbol='+encodeURIComponent(tk)+'&token='+encodeURIComponent(k));
+      if(r.status===401||r.status===403){bad++;return}
+      if(!r.ok){fail++;return}
+      const j=await r.json(),c=+j.c;
+      if(!(c>0)){fail++;return}
+      const dt=j.t>0?new Date(j.t*1000):new Date(),ds=dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate()),o=S.cot.t['US:'+tk];
+      if(!o||o.v!==c||o.d!==ds){S.cot.t['US:'+tk]={v:Math.round(c*1e4)/1e4,d:ds};ch=true}
+    }catch(e){fail++}
+  }));
+  xbusy=false;
+  if(ch)persistQuiet();
+  if(modal||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||''))patchChip();else render();
+  if(bad)toast('A chave da Finnhub foi recusada. Confira se copiou inteira.');
+  else if(fail)toast('Não consegui buscar '+(fail>1?'alguns ativos':'um ativo')+' dos EUA agora (o navegador ou a Finnhub bloqueou). Digite o preço à mão.');
+  else if(manual)toast('Cotações dos EUA atualizadas.');
+}
 async function refreshQuotes(manual){
+  refreshExt(manual);
   if(qbusy)return;
   let m=null;try{m=window.claude&&window.claude.use?await window.claude.use('mcp'):null}catch(e){m=null}
   if(!m){if(manual)toast('Cotação automática indisponível aqui. Informe os valores à mão.');return}
@@ -894,7 +921,7 @@ async function refreshQuotes(manual){
   qbusy=false;
   if(ch)persistQuiet();
   if(modal||/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||''))patchChip();else render();
-  if(err)toast(qErr(err));else if(manual)toast(S.inv.some(i=>i.tipo==='ext')?'Dólar e cotações atualizados. Preços dos ativos dos EUA: informe à mão.':'Cotações atualizadas.');
+  if(err)toast(qErr(err));else if(manual)toast(S.inv.some(i=>i.tipo==='ext')?'Cotações atualizadas.':'Cotações atualizadas.');
 }
 
 /* ---------- exportação ---------- */
@@ -1489,6 +1516,7 @@ document.addEventListener('change',e=>{
   const el=e.target;
   if(el.name==='itipo'){el.closest('form').dataset.t=el.value;return}
   if(el.name==='oper'){el.closest('form').dataset.o=el.value;return}
+  if(el.dataset&&el.dataset.fhkey!==undefined){try{localStorage.setItem('cf_fhkey',el.value.trim())}catch(e){}toast(el.value.trim()?'Chave salva neste aparelho.':'Chave removida.');if(el.value.trim())refreshExt(true);return}
   if(el.dataset&&el.dataset.cot!==undefined){const k=el.dataset.cot,v=numP(el.value);
     if(k==='USD'){if(v>0){S.cot.usd=v;S.cot.usdData=todayStr}else{S.cot.usd=0;S.cot.usdData=null}}
     else{if(v>0)S.cot.t[k]={v,d:todayStr};else delete S.cot.t[k]}
