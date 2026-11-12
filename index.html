@@ -580,7 +580,7 @@ function invRow(i){
   else if(i.tipo==='res')sub=`${inst}saldo em conta${i.atualData?' · de '+dmy(i.atualData):''} · sem rendimento calculado`;
   else sub=`${inst}aplicado ${brl(i.aplicado)}${i.atualData?' · saldo de '+dmy(i.atualData):''}${i.venc?' · vence '+i.venc.split('-').reverse().join('/'):''}`;
   const lbl=(i.tipo==='acao'||i.tipo==='ext')?tick(i.nome).slice(0,2):i.tipo==='usd'?'$':(i.nome||'?').charAt(0).toUpperCase();
-  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'||i.tipo==='ext'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${i.tipo==='ext'?usdF(i.qtd*(cotExt(i)?cotExt(i).v:i.pm)):brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${i.tipo==='ext'?sgnU(r/dolX(i)):sgn(r)} · ${pctF(p)}</small>${i.tipo==='ext'?`<small class="mut">≈ ${brl(v)}</small>`:''}`}</div></div>`;
+  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'||i.tipo==='ext'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${i.tipo==='ext'?usdF(i.qtd*(cotExt(i)?cotExt(i).v:i.pm)):brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${i.tipo==='ext'?sgnU(r/dolX(i)):sgn(r)} · ${pctF(p)}</small>${i.tipo==='ext'?`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">≈ ${sgn(r)}</small>`:''}`}</div></div>`;
 }
 function vInv(){
   const L=S.inv,tot=invSum(L);
