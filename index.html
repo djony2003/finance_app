@@ -551,12 +551,12 @@ const staleTag=d=>!d?'<i class="tag warn">sem cotação</i>':d===todayStr?'<i cl
 function invRow(i){
   const c=invCusto(i),v=invVal(i),r=v-c,p=c?r/c:0,inst=i.inst?esc(i.inst)+' · ':'';let sub;
   if(i.tipo==='acao'){const q=cotAcao(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${brlN(i.pm)} · ${q?'fech. '+brlN(q.v):'sem cotação'}`}
-  else if(i.tipo==='ext'){const q=cotExt(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${usdF(i.pm)} · ${q?'hoje '+usdF(q.v)+' ('+dmy(q.d)+')':'sem cotação'}`}
+  else if(i.tipo==='ext'){const q=cotExt(i);sub=`${inst}${qtdF(i.qtd)} cotas · PM ${usdF(i.pm)} · ${q?'hoje '+usdF(q.v)+' ('+dmy(q.d)+')':'sem cotação'}<br>Total ${usdF(i.qtd*(q?q.v:i.pm))} · dólar de hoje ${S.cot.usd>0?brlN(S.cot.usd):'—'}`}
   else if(i.tipo==='usd')sub=`${inst}${usdF(i.usd)} em caixa · dólar médio ${brlN(i.dm)} · hoje ${S.cot.usd?brlN(S.cot.usd):'—'}${usdExt()>0?`<br>Total em dólar (caixa + ações): <b>${usdF(i.usd+usdExt())}</b>`:''}`;
   else if(i.tipo==='res')sub=`${inst}saldo em conta${i.atualData?' · de '+dmy(i.atualData):''} · sem rendimento calculado`;
   else sub=`${inst}aplicado ${brl(i.aplicado)}${i.atualData?' · saldo de '+dmy(i.atualData):''}${i.venc?' · vence '+i.venc.split('-').reverse().join('/'):''}`;
   const lbl=(i.tipo==='acao'||i.tipo==='ext')?tick(i.nome).slice(0,2):i.tipo==='usd'?'$':(i.nome||'?').charAt(0).toUpperCase();
-  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'||i.tipo==='ext'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${i.tipo==='ext'?sgnU(r/dolX(i)):sgn(r)} · ${pctF(p)}</small>`}</div></div>`;
+  return `<div class="it"><span class="av" style="--c:${INVT[i.tipo][1]}">${esc(lbl)}</span><button class="n w" data-a="open" data-m="invOp" data-id="${i.id}"><b>${esc(i.tipo==='acao'||i.tipo==='ext'?tick(i.nome):i.nome)}</b><span>${sub}</span></button><div class="a">${brl(v)}${i.tipo==='res'?'':`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">${i.tipo==='ext'?sgnU(r/dolX(i)):sgn(r)} · ${pctF(p)}</small>${i.tipo==='ext'?`<small class="${r<-0.004?'neg':r>0.004?'pos':'mut'}">≈ ${sgn(r)}</small>`:''}`}</div></div>`;
 }
 function vInv(){
   const L=S.inv,tot=invSum(L);
