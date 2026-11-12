@@ -408,6 +408,7 @@ const catColor=(c,tipo)=>{if(tipo==='entrada')return 'var(--pos)';const i=CD.ind
 const av=(c,tipo)=>`<span class="av" style="--c:${catColor(c,tipo)}">${esc((c||'?').charAt(0))}</span>`;
 
 const IC={
+  cfg:'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
   eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 5.1A10.5 10.5 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
   home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>',
@@ -603,7 +604,7 @@ function vInv(){
   const cot=(hasUsd||tks.length||exs.length)?`<div class="card"><h3>Cotações <button class="sec mini" data-a="qrefresh">Atualizar agora</button></h3><p class="hint" style="margin:-4px 0 14px">O dólar é buscado sozinho ao abrir o app. O fechamento das ações você informa à mão; o resultado é recalculado na hora.</p><div class="capgrid">
     ${hasUsd?`<label><span>Dólar (R$) ${staleTag(S.cot.usdData)}</span><input data-cot="USD" inputmode="decimal" value="${fmtN(S.cot.usd)}" placeholder="ex.: 5,52"></label>`:''}
     ${tks.map(t=>{const c=S.cot.t[t];return `<label><span>${esc(t)} ${staleTag(c&&c.d)}</span><input data-cot="${esc(t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="fechamento (R$)"></label>`}).join('')}
-    ${exs.map(t=>{const c=S.cot.t['US:'+t];return `<label><span>${esc(t)} (US$) ${staleTag(c&&c.d)}</span><input data-cot="${esc('US:'+t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="cotação (US$)"></label>`}).join('')}</div>${exs.length?`<label style="display:block;margin-top:12px"><span>Chave da Finnhub (fica só neste aparelho)</span><input data-fhkey="1" type="password" autocomplete="off" value="${esc(fhKey())}" placeholder="cole a chave para buscar ações dos EUA"></label><p class="hint" style="margin:8px 0 0">Com a chave, o botão busca o preço dos ativos dos EUA. Se falhar, digite o preço à mão.</p>`:''}</div>`:'';
+    ${exs.map(t=>{const c=S.cot.t['US:'+t];return `<label><span>${esc(t)} (US$) ${staleTag(c&&c.d)}</span><input data-cot="${esc('US:'+t)}" inputmode="decimal" value="${c?fmtN(c.v):''}" placeholder="cotação (US$)"></label>`}).join('')}</div>${exs.length?`<p class="hint" style="margin:10px 0 0">Para buscar sozinho o preço dos ativos dos EUA, informe a chave da Finnhub em Mais > Configurações. Se falhar, digite o preço à mão.</p>`:''}</div>`:'';
   const cards=tipos.map(t=>{const s_=sums[t];return `<div class="card"><h3>${INVT[t][0]} <small>${brl(s_.v)} · <span class="${s_.r<-0.004?'neg':'pos'}">${pctF(s_.p)}</span></small></h3>${L.filter(i=>i.tipo===t).map(invRow).join('')}</div>`}).join('');
   return pageHead('Investimentos','Toque numa aplicação para comprar, vender, aportar, resgatar ou atualizar o saldo.',add)+hero+cot+cards;
 }
@@ -915,7 +916,7 @@ async function refreshExt(manual){
   const tks=[...new Set(S.inv.filter(i=>i.tipo==='ext').map(i=>tick(i.nome)))];
   if(!tks.length||xbusy)return;
   const k=fhKey();
-  if(!k){if(manual)toast('Informe a chave da Finnhub em Cotações para buscar ações dos EUA.');return}
+  if(!k){if(manual)toast('Informe a chave da Finnhub em Mais > Configurações para buscar ações dos EUA.');return}
   xbusy=true;let ch=false,fail=0,bad=0;
   await Promise.all(tks.map(async tk=>{
     try{
@@ -1184,8 +1185,12 @@ function vContas(){
   (S.transf.length?`<div class="card"><h3>Transferências recentes</h3>${S.transf.slice().sort((a,b)=>b.data.localeCompare(a.data)||b.id-a.id).slice(0,8).map(t=>`<div class="it"><span class="av" style="--c:#12a383">⇄</span><div class="n"><b>${esc(epNome(t.de))} → ${esc(epNome(t.para))}</b><span>${dmy(t.data)}${t.nota?' · '+esc(t.nota):''}</span></div><div class="a">${brl(t.valor)}</div><button class="icon danger" data-a="delTransf" data-id="${t.id}" aria-label="Desfazer transferência">${ic('trash',17)}</button></div>`).join('')}<p class="hint" style="margin:8px 0 0">Transferir não conta como gasto nem como entrada. Ao desfazer, os saldos voltam.</p></div>`:'')+
   `<div class="card"><div class="sh"><span>Cartões</span><div class="chips"><button class="chip" data-a="open" data-m="conta" data-t="cartao">+ Cartão</button></div></div>${cards||'<p class="hint" style="margin:0">Nenhum cartão cadastrado. Cadastre para ver fatura e limite de cada um.</p>'}${ck.length&&semC?`<p class="hint" style="margin:10px 0 0">${semC} compra${semC>1?'s':''} no cartão sem cartão definido. Escolha o cartão ao lançar uma compra.</p>`:''}</div>`;
 }
+function vConfig(){
+  return pageHead('Configurações','Aparência, privacidade e segurança.')+
+`  <div class="card"><h3>Entradas ocultas</h3><p class="hint" style="margin:0 0 12px">${ENTH?'Os valores das entradas (salários, recebimentos) ficam cobertos e só aparecem quando você toca no olho ao lado. Toque de novo para esconder (eles também se escondem sozinhos depois de 1 minuto).':'As entradas estão sempre visíveis.'}</p><div class="btns"><button class="sec" data-a="togEnt">${ENTH?'Mostrar sempre':'Ocultar entradas'}</button></div></div>${encCard()}${senhaCard()}<div class="card"><h3>Aparência</h3><div class="chips">${[['auto','Automático'],['light','Claro'],['dark','Escuro']].map(([v,l])=>`<button class="chip ${(S.tema||'auto')===v?'on':''}" data-a="tema" data-v="${v}">${l}</button>`).join('')}</div><p class="hint">Automático segue o modo claro ou escuro do seu aparelho.</p></div><div class="card"><h3>Cotações de ações dos EUA</h3><p class="hint" style="margin:0 0 12px">Chave da Finnhub, usada para buscar o preço dos ativos em dólar. Fica só neste aparelho.</p><label>Chave da Finnhub<input data-fhkey="1" type="password" autocomplete="off" value="${esc(fhKey())}" placeholder="cole a chave aqui"></label></div>`;
+}
 function vMais(){
-  return pageHead('Mais','Lançar em lote, exportar e cópia de segurança.')+
+  return pageHead('Mais','Lançar em lote, relatórios, exportar e cópia de segurança.')+
   `<div class="card"><div class="menu">
     <button data-a="tab" data-t="contas"><span class="av">${ic('card',18)}</span><span><b>Contas e cartões</b><small>Saldo de cada conta, fatura e limite dos cartões</small></span></button>
     <button data-a="tab" data-t="ditar"><span class="av">${ic('mic',18)}</span><span><b>Ditar ou colar vários</b><small>Escreva ou fale vários lançamentos de uma vez</small></span></button>
@@ -1196,8 +1201,8 @@ function vMais(){
     <button data-a="tab" data-t="extrato"><span class="av">${ic('list',18)}</span><span><b>Extrato e filtros</b><small>Filtre por categoria, tag, pessoa ou texto</small></span></button>
     <button data-a="tab" data-t="cats"><span class="av">${ic('plus',18)}</span><span><b>Categorias e tags</b><small>Crie as suas e organize os lançamentos</small></span></button>
     <button data-a="tab" data-t="metas"><span class="av">${ic('target',18)}</span><span><b>Metas e tetos</b><small>Reservas e limites por categoria</small></span></button>
+    <button data-a="tab" data-t="config"><span class="av">${ic('cfg',18)}</span><span><b>Configurações</b><small>Tema, entradas ocultas, senha, criptografia e cotações</small></span></button>
   </div></div>
-  <div class="card"><h3>Entradas ocultas</h3><p class="hint" style="margin:0 0 12px">${ENTH?'Os valores das entradas (salários, recebimentos) ficam cobertos e só aparecem quando você toca no olho ao lado. Toque de novo para esconder (eles também se escondem sozinhos depois de 1 minuto).':'As entradas estão sempre visíveis.'}</p><div class="btns"><button class="sec" data-a="togEnt">${ENTH?'Mostrar sempre':'Ocultar entradas'}</button></div></div>${encCard()}${senhaCard()}<div class="card"><h3>Aparência</h3><div class="chips">${[['auto','Automático'],['light','Claro'],['dark','Escuro']].map(([v,l])=>`<button class="chip ${(S.tema||'auto')===v?'on':''}" data-a="tema" data-v="${v}">${l}</button>`).join('')}</div><p class="hint">Automático segue o modo claro ou escuro do seu aparelho.</p></div>
   <div class="card"><h3>Exportar para planilha</h3><p class="hint" style="margin:-4px 0 14px">Arquivo CSV, abre no Excel ou Google Planilhas.</p>
   ${dl?`<div class="btns"><button class="pri" style="flex:none" data-a="exportMes">${ic('dl',17)} ${esc(cap(mlabel(view)))}</button><button class="sec" data-a="exportTudo">Todos os meses</button>${S.inv.length?'<button class="sec" data-a="exportInv">Carteira de investimentos</button>':''}</div>`:'<p class="hint">Download indisponível nesta visualização. Abra o app pelo claude.ai.</p>'}</div>
   <div class="card"><h3>Cópia de segurança</h3><p class="hint" style="margin:-4px 0 14px">Guarde uma cópia de todos os dados. Restaurar substitui os dados atuais pelos do arquivo.</p>
@@ -1240,8 +1245,8 @@ function renderPreview(){
 const NAV=[['resumo','Início','home'],['lanc','Lançamentos','list'],['fixas','Fixas','repeat'],['cartao','Cartão','card'],['inv','Investir','trend'],['mais','Mais','more']];
 function applyTema(){const r=document.documentElement;if(S.tema==='light'||S.tema==='dark')r.setAttribute('data-theme',S.tema);else r.removeAttribute('data-theme')}
 function render(){refreshCats();applyTema();
-  const body=tab==='inv'?vInv():tab==='lanc'?vLanc():tab==='fixas'?vFixas():tab==='cartao'?vCartao():tab==='metas'?vMetas():tab==='ditar'?vDitar():tab==='previsao'?vPrev():tab==='contas'?vContas():tab==='importar'?vImp():tab==='fechamento'?vFech():tab==='relatorio'?vRel():tab==='extrato'?vExtrato():tab==='cats'?vCats():tab==='mais'?vMais():vResumo();
-  const navOn=t=>tab===t||(t==='mais'&&(tab==='contas'||tab==='ditar'||tab==='metas'||tab==='extrato'||tab==='cats'||tab==='relatorio'||tab==='previsao'||tab==='importar'||tab==='fechamento'));
+  const body=tab==='inv'?vInv():tab==='lanc'?vLanc():tab==='fixas'?vFixas():tab==='cartao'?vCartao():tab==='metas'?vMetas():tab==='ditar'?vDitar():tab==='previsao'?vPrev():tab==='contas'?vContas():tab==='importar'?vImp():tab==='fechamento'?vFech():tab==='relatorio'?vRel():tab==='extrato'?vExtrato():tab==='cats'?vCats():tab==='config'?vConfig():tab==='mais'?vMais():vResumo();
+  const navOn=t=>tab===t||(t==='mais'&&(tab==='contas'||tab==='ditar'||tab==='metas'||tab==='extrato'||tab==='cats'||tab==='relatorio'||tab==='previsao'||tab==='importar'||tab==='fechamento'||tab==='config'));
   const st=($('.status')||{}).textContent||'';
   const brand=`<div class="brand"><span class="logo">R$</span><div><h1>Controle Financeiro</h1><div class="status">${esc(st)}</div></div><button class="eyeb eye-m${HIDE?' on':''}" data-a="eye" aria-label="${HIDE?'Mostrar valores':'Ocultar valores'}" aria-pressed="${HIDE}">${ic(HIDE?'eyeoff':'eye',19)}</button></div>`;
   const side=`<aside class="side">${brand}<button class="pri" data-a="open" data-m="addTx">${ic('plus',18)} Novo lançamento</button>${NAV.slice(0,4).concat([['inv','Investimentos','trend'],['contas','Contas e cartões','card'],['metas','Metas e tetos','target'],['ditar','Ditar ou colar','mic'],['previsao','Previsão','trend'],['fechamento','Fechar o mês','cal'],['importar','Importar extrato','dl'],['relatorio','Relatório do mês','text'],['extrato','Extrato e filtros','list'],['cats','Categorias e tags','plus'],['mais','Exportar e backup','dl']]).map(n=>`<button class="nv ${tab===n[0]?'on':''}" data-a="tab" data-t="${n[0]}">${ic(n[2],19)}${n[1]}</button>`).join('')}</aside>`;
