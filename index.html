@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#151d3d">
 <script>
 /* Versão independente: troca os recursos do Claude por recursos do navegador */
-window.CF_STANDALONE=true;
+window.CF_STANDALONE=true;window.CF_OCR='ocr/';
 (function(){
   const caps={
     artifact:async()=>null,
@@ -673,11 +673,63 @@ async function nfRead(f){
       toast('Nota lida'+(r.resumo?' ('+String(r.resumo).slice(0,40)+')':'')+'. Confira e salve.')}
   }catch(x){toast(x&&x.code==='rate_limited'?'Muitas leituras seguidas. Aguarde um pouco.':x&&x.code==='not_granted'?'Leitura de nota não autorizada.':'Não consegui ler essa nota.')}
   pend.busy=false;paintAnx()}
+/* leitura de nota no navegador (versão independente): OCR local com Tesseract, sem enviar a imagem para ninguém */
+let OCRW=null;
+const loadScript=s=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=()=>no(new Error('script '+s));document.head.appendChild(e)});
+async function ocrWorker(){
+  if(OCRW)return OCRW;
+  const base=window.CF_OCR;
+  if(!window.Tesseract)await loadScript(base+'tesseract.min.js');
+  OCRW=await Tesseract.createWorker('por',1,{workerPath:base+'worker.min.js',corePath:base+'core',langPath:base+'lang',gzip:true,cacheMethod:'none'});
+  return OCRW}
+const amtRx=/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*|\d+)[,.](\d{2})(?!\d)/g;
+const amts=s=>{const o=[];let m;amtRx.lastIndex=0;while((m=amtRx.exec(s))){const v=parseFloat(m[1].replace(/\./g,'')+'.'+m[2]);if(v>0&&v<1e6)o.push(v)}return o};
+function nfParse(txt){
+  const L=String(txt||'').split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
+  let total=0;
+  const strong=/(valor\s*(a\s*)?pag|total\s*a\s*pagar|a\s*pagar|total\s*geral|total\s*r\$|total\s*da\s*nota)/i,weak=/\btotal\b/i,skip=/(sub\s*-?total|troco|recebido|desconto|acr[eé]scimo|tributos|imposto|dinheiro|cart[aã]o|qtd|quant)/i;
+  for(const rx of [strong,weak]){
+    for(let i=0;i<L.length&&!total;i++){
+      if(!rx.test(L[i])||(rx===weak&&skip.test(L[i])))continue;
+      let a=amts(L[i]);
+      if(!a.length&&i+1<L.length&&/^(R\$\s*)?\d[\d.]*,\d{2}$/.test(L[i+1]))a=amts(L[i+1]);
+      if(a.length){total=rx===strong?a[0]:Math.max(...a)}
+    }
+    if(total)break}
+  if(!total){const c=[];L.forEach(l=>{if(!skip.test(l))amts(l).forEach(v=>c.push(v))});if(c.length)total=Math.max(...c)}
+  let data=null;
+  const dr=/(\d{2})[\/.\-](\d{2})[\/.\-](\d{4}|\d{2})(?!\d)/g;
+  for(const l of L){dr.lastIndex=0;let m;while((m=dr.exec(l))){let d=+m[1],mo=+m[2],y=+m[3];if(y<100)y+=2000;
+    if(mo<1||mo>12||d<1||d>31||y<2000)continue;const iso=y+'-'+pad(mo)+'-'+pad(d);if(iso<=todayStr){data=iso;break}}
+    if(data)break}
+  let nome='';
+  const bad=/(cnpj|cpf|cupom|nota\s*fiscal|danfe|nfc-?e|nf-?e|documento|auxiliar|consumidor|ie:|i\.e\.|inscri|endere|rua |av\.? |avenida|tel|fone|www|http|\d{6,})/i;
+  for(const l of L.slice(0,10)){const letters=(l.match(/[A-Za-zÀ-ÿ]/g)||[]).length;if(letters>=4&&letters/l.length>.6&&!bad.test(l)){nome=l;break}}
+  nome=nome.replace(/[^A-Za-zÀ-ÿ0-9 &.'\-]/g,'').replace(/\s+/g,' ').trim().slice(0,40);
+  if(nome&&nome===nome.toUpperCase())nome=nome.toLowerCase().replace(/(^|\s)([a-zà-ÿ])/g,(m,a,b)=>a+b.toUpperCase());
+  return {total,data,nome}}
+async function ocrRead(f){
+  pend.busy=true;toast('Lendo a nota… na primeira vez pode levar alguns segundos.');
+  try{
+    let b;try{b=await shrink(f,2000,.9)}catch(x){b=f}
+    const w=await ocrWorker();
+    const r=await w.recognize(b);
+    const p=nfParse(r&&r.data&&r.data.text);
+    const fm=document.querySelector('.modal form');
+    if(!fm||!(p.total>0)){toast('Não consegui ler o valor dessa nota. Tente de novo com mais luz e a nota esticada.')}
+    else{
+      const set=(n,v)=>{const e=fm.elements[n];if(e&&v)e.value=v};
+      set('valor',p.total.toFixed(2).replace('.',','));
+      if(p.nome)set('nome',p.nome);
+      if(p.data)set('data',p.data);
+      toast('Nota lida'+(p.data?'':' (sem data, confira)')+'. Confira o valor, a descrição e a data antes de salvar.')}
+  }catch(x){OCRW=null;toast('Não consegui carregar a leitura de notas. Verifique a internet e tente de novo.')}
+  pend.busy=false;paintAnx()}
 function anxHtml(){
   const f=pend.foto,l=pend.loc;
   const foto=f?`<div class="anxph"><a href="/_blob/${esc(f)}" target="_blank" rel="noopener"><img src="/_blob/${esc(f)}" alt="Foto anexada"></a><button type="button" class="icon danger" data-a="rmFoto" aria-label="Remover foto">${ic('x',16)}</button></div>`:(AS?`<label class="btnl">${ic('cam',16)} Anexar foto<input type="file" accept="image/*" id="fotoin" hidden></label>`:'');
   const loc=l?`<a class="tag" target="_blank" rel="noopener" href="https://maps.apple.com/?ll=${l.lat},${l.lon}&q=Compra">${ic('pin',12)} ver no mapa</a><button type="button" class="icon danger" style="width:28px;height:28px" data-a="rmLoc" aria-label="Remover localização">${ic('x',14)}</button>`:`<button type="button" class="sec mini" data-a="getLoc">${ic('pin',14)} Marcar onde estou</button>`;
-  const nf=SAMP?`<label class="btnl nfb">${ic('cam',16)} Ler nota fiscal<input type="file" accept="image/*" capture="environment" id="nfin" hidden></label>`:'';
+  const nf=(SAMP||window.CF_OCR)?`<label class="btnl nfb">${ic('cam',16)} Ler nota fiscal<input type="file" accept="image/*" capture="environment" id="nfin" hidden></label>`:'';
   return `<div class="anxrow">${nf}${foto}${loc}</div>`;
 }
 function paintAnx(){const a=$('#anx');if(a)a.innerHTML=anxHtml()}
@@ -1565,7 +1617,7 @@ document.addEventListener('change',e=>{
     if(k==='USD'){if(v>0){S.cot.usd=v;S.cot.usdData=todayStr}else{S.cot.usd=0;S.cot.usdData=null}}
     else{if(v>0)S.cot.t[k]={v,d:todayStr};else delete S.cot.t[k]}
     commit();toast('Cotação atualizada.');return}
-  if(el.id==='nfin'){const f=el.files&&el.files[0];if(f&&SAMP)nfRead(f);el.value='';return}
+  if(el.id==='nfin'){const f=el.files&&el.files[0];if(f&&SAMP)nfRead(f);else if(f&&window.CF_OCR)ocrRead(f);el.value='';return}
   if(el.id==='fotoin'){const f=el.files&&el.files[0];if(!f||!AS)return;pend.busy=true;toast('Enviando foto…');
     (async()=>{try{let b;try{b=await shrink(f)}catch(x){b=f}const r=await AS.upload(b);pend.foto=r.id;toast('Foto anexada.')}catch(x){toast('Não consegui enviar a foto.')}pend.busy=false;paintAnx()})();return}
   if(el.id==='sini'){const v=parseValor(el.value);S.saldoIni=isFinite(v)?v:0;commit();return}
